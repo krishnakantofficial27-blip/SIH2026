@@ -4,6 +4,7 @@ import math, os, random
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Literal
+# pyrefly: ignore [missing-import]
 import joblib, numpy as np
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,7 +13,14 @@ from sqlalchemy import create_engine, String, Float, Integer, DateTime, Text, se
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, Session, sessionmaker
 from sklearn.ensemble import RandomForestRegressor
 
-ROOT=Path(__file__).resolve().parents[2]; DB=os.getenv('DATABASE_URL','sqlite:///'+str(ROOT/'landslide.db'))
+ROOT=Path(__file__).resolve().parent.parent  # backend/ directory
+_db_url = os.getenv('DATABASE_URL', '')
+if not _db_url:
+    _db_url = 'sqlite:///' + str(ROOT / 'landslide.db')
+# Render uses postgres:// but SQLAlchemy needs postgresql://
+if _db_url.startswith('postgres://'):
+    _db_url = _db_url.replace('postgres://', 'postgresql://', 1)
+DB = _db_url
 engine=create_engine(DB, connect_args={'check_same_thread':False} if DB.startswith('sqlite') else {})
 SessionLocal=sessionmaker(bind=engine, autoflush=False)
 class Base(DeclarativeBase): pass
