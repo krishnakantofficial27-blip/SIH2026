@@ -16,7 +16,11 @@ from sklearn.ensemble import RandomForestRegressor
 ROOT=Path(__file__).resolve().parent.parent  # backend/ directory
 _db_url = os.getenv('DATABASE_URL', '')
 if not _db_url:
-    _db_url = 'sqlite:///' + str(ROOT / 'landslide.db')
+    # Vercel serverless: filesystem is read-only except /tmp
+    _db_path = ROOT / 'landslide.db'
+    if not _db_path.parent.exists() or os.getenv('VERCEL'):
+        _db_path = Path('/tmp/landslide.db')
+    _db_url = 'sqlite:///' + str(_db_path)
 # Render uses postgres:// but SQLAlchemy needs postgresql://
 if _db_url.startswith('postgres://'):
     _db_url = _db_url.replace('postgres://', 'postgresql://', 1)
@@ -63,12 +67,15 @@ def db():
     try: yield s
     finally:s.close()
 FEATURES=['rainfall_1h','rainfall_24h','rainfall_72h','slope_deg','elevation','soil_moisture','ndvi','land_cover','historical_landslides','community_report_count']
-MODEL_PATH=ROOT/'model.joblib'
+MODEL_PATH=Path('/tmp/model.joblib') if os.getenv('VERCEL') else ROOT/'model.joblib'
 def model():
     if MODEL_PATH.exists(): return joblib.load(MODEL_PATH)
     rng=np.random.default_rng(26001); x=np.column_stack([rng.gamma(2,6,1200),rng.gamma(3,18,1200),rng.gamma(4,22,1200),rng.uniform(3,52,1200),rng.uniform(80,2600,1200),rng.uniform(.08,.8,1200),rng.uniform(.1,.9,1200),rng.integers(0,5,1200),rng.integers(0,10,1200),rng.integers(0,7,1200)])
     y=np.clip(2+.18*x[:,1]+.16*x[:,2]+.75*x[:,3]+30*x[:,5]-15*x[:,6]+2.5*x[:,8]+1.8*x[:,9]+np.where(x[:,7]==3,8,0)+rng.normal(0,5,1200),0,100)
-    m=RandomForestRegressor(n_estimators=140,min_samples_leaf=3,random_state=26001,n_jobs=-1).fit(x,y); joblib.dump(m,MODEL_PATH); return m
+    m=RandomForestRegressor(n_estimators=140,min_samples_leaf=3,random_state=26001,n_jobs=-1).fit(x,y)
+    try: joblib.dump(m,MODEL_PATH)
+    except OSError: pass  # read-only filesystem (Vercel)
+    return m
 ML=model()
 def level(v): return 'CRITICAL' if v>=75 else 'HIGH' if v>=50 else 'MODERATE' if v>=25 else 'LOW'
 def predict(payload, reports=0):
