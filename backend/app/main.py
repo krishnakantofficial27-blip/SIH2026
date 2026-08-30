@@ -75,7 +75,16 @@ class Prediction(BaseModel):
     zone_id:str; rainfall_1h:float=10; rainfall_24h:float=Field(ge=0); rainfall_72h:float=Field(ge=0); slope_deg:float=Field(ge=0,le=90); elevation:float=800; soil_moisture:float=Field(ge=0,le=1); ndvi:float=Field(ge=0,le=1); land_cover:int=2; historical_landslides:int=Field(ge=0); community_report_count:int=Field(default=0,ge=0)
 class ReportIn(BaseModel): report_type:str; description:str=Field(min_length=3,max_length=1000); severity:Literal['LOW','MODERATE','HIGH','CRITICAL']; latitude:float=Field(ge=20,le=30); longitude:float=Field(ge=88,le=98)
 app=FastAPI(title='Landslide Early Warning System',version='1.0.0',description='Prototype decision-support API; uses documented synthetic demo data.')
-app.add_middleware(CORSMiddleware,allow_origins=['http://localhost:5173'],allow_credentials=True,allow_methods=['*'],allow_headers=['*'])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "https://sih-2026-g6jtatkdg-krishna-315e.vercel.app",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 @app.on_event('startup')
 def seed():
  Base.metadata.create_all(engine)
@@ -102,7 +111,7 @@ def prediction(p:Prediction,s:Session=Depends(db)):
  if z:z.score,z.ml_score,z.community_adjustment,z.updated_at=score,ml,boost,datetime.utcnow();s.commit(); trigger_alert(s,z)
  return {'zone_id':p.zone_id,'risk_score':score,'risk_level':level(score),'confidence':round(.72+min(score,80)/400,2),'ml_score':ml,'community_adjustment':boost,'contributing_factors':factors}
 def trigger_alert(s,z):
- if z.score>=75 and not s.scalar(select(Alert).where(Alert.zone_id==z.id,Alert.status=='ACTIVE')):s.add(Alert(zone_id=z.id,title=f'Critical risk in {z.name}',message='Avoid unstable slopes and follow local authority advice.',severity='CRITICAL'));s.commit()
+ if z.score>=75 and not s.scalar(select(Alert).where((Alert.zone_id==z.id) & (Alert.status=='ACTIVE'))):s.add(Alert(zone_id=z.id,title=f'Critical risk in {z.name}',message='Avoid unstable slopes and follow local authority advice.',severity='CRITICAL'));s.commit()
 @app.get('/api/risk-summary')
 def summary(s:Session=Depends(db)):
  zs=s.scalars(select(Zone)).all(); return {'overall_score':round(sum(z.score for z in zs)/len(zs),1),'overall_level':level(sum(z.score for z in zs)/len(zs)),'total_zones':len(zs),'high_risk_zones':sum(z.score>=50 for z in zs),'critical_zones':sum(z.score>=75 for z in zs),'active_reports':sum(1 for _ in s.scalars(select(Report).where(Report.status!='REJECTED'))),'active_alerts':sum(1 for _ in s.scalars(select(Alert).where(Alert.status=='ACTIVE'))),'demo_mode':True}
