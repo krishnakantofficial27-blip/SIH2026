@@ -17,18 +17,86 @@ body {
   min-height: 100vh;
 }
 
+/* ── Mobile Top Header Bar with Hamburger ☰ ── */
+.mobile-header-bar {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: #102a35;
+  border-bottom: 1px solid #1d4651;
+  padding: 0 16px;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 500;
+}
+
+.hamburger-btn {
+  background: transparent;
+  border: 0;
+  color: #59d0bd;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+}
+
+.mobile-brand {
+  font: 700 18px 'Outfit', sans-serif;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #ffffff;
+}
+
+.mobile-brand span {
+  color: #59d0bd;
+}
+
+.mobile-scenario-btn {
+  background: #ef6b42;
+  color: white;
+  border: 0;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
 /* ── Sidebar ── */
-aside {
+aside.sidebar {
   position: fixed;
   width: 250px;
   inset: 0 auto 0 0;
   background: #102a35;
   color: #d9e5e5;
-  padding: 28px 18px;
+  padding: 24px 18px;
   display: flex;
   flex-direction: column;
-  z-index: 100;
+  z-index: 600;
   box-shadow: 4px 0 20px rgba(0, 0, 0, 0.25);
+  transition: transform 0.3s ease;
+}
+
+.sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.close-sidebar-btn {
+  display: none;
+  background: transparent;
+  border: 0;
+  color: #86a4aa;
+  cursor: pointer;
 }
 
 .brand {
@@ -119,7 +187,7 @@ main {
   max-width: 1700px;
 }
 
-header {
+.main-header {
   display: flex;
   justify-content: space-between;
   gap: 20px;
@@ -170,27 +238,16 @@ h1 {
   color: #f1f5f9;
 }
 
-.notice.cold-start {
-  background: #0f2744;
-  border-left-color: #0ea5e9;
-  color: #bae6fd;
+.notice.info-banner {
+  background: #102a35;
+  border-left-color: #5dd1be;
+  color: #e2e8f0;
 }
 
 .notice.error-banner {
   background: #3f1212;
   border-left-color: #ef4444;
   color: #fecdd3;
-}
-
-.notice.connecting {
-  background: #064e3b;
-  border-left-color: #22c55e;
-  color: #a7f3d0;
-}
-
-.notice.info-banner {
-  background: #1e293b;
-  border-left-color: #3b82f6;
 }
 
 .dismiss-btn,
@@ -202,14 +259,6 @@ h1 {
   border-radius: 6px;
   padding: 4px 10px;
   cursor: pointer;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-.spin {
-  animation: spin 1s linear infinite;
 }
 
 /* ── Hero & Quick Stats ── */
@@ -339,6 +388,51 @@ h1 {
   font-family: inherit;
   font-weight: 700;
   cursor: pointer;
+}
+
+/* ── Alerts Cards ── */
+.alerts-full-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.alert-card-item {
+  display: flex;
+  gap: 14px;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 16px;
+  align-items: flex-start;
+}
+
+.alert-card-item.critical {
+  border-color: #ef4444;
+  background: #451a1a;
+  color: #fecdd3;
+}
+
+.alert-card-item.high {
+  border-color: #f97316;
+  background: #3f1e14;
+  color: #ffedd5;
+}
+
+.alert-card-item h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+
+.alert-card-item p {
+  margin: 0 0 6px;
+  font-size: 13px;
+}
+
+.alert-card-item small {
+  font-size: 11px;
+  opacity: 0.8;
 }
 
 /* ── Risk Map Component Styles ── */
@@ -1187,26 +1281,31 @@ footer {
   padding-top: 16px;
 }
 
-/* ── Responsive Mobile ── */
-@media (max-width: 900px) {
-  aside {
-    width: 70px;
-    padding: 20px 10px;
+/* ── Responsive Mobile & Hamburger Drawer ── */
+@media (max-width: 960px) {
+  .mobile-header-bar {
+    display: flex;
   }
-  .brand span,
-  .tag,
-  .nav-menu button span,
-  .role-switcher small {
-    display: none;
+  aside.sidebar {
+    transform: translateX(-100%);
+    width: 270px;
+    padding-top: 20px;
   }
-  .nav-menu button {
-    justify-content: center;
-    padding: 12px;
+  aside.sidebar.open {
+    transform: translateX(0);
+  }
+  .close-sidebar-btn {
+    display: block;
   }
   main {
-    margin-left: 70px;
-    width: calc(100% - 70px);
-    padding: 20px;
+    margin-left: 0;
+    width: 100%;
+    padding: 80px 20px 20px;
+  }
+  .main-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
   }
   .stats,
   .analytics-grid,
@@ -1224,10 +1323,6 @@ footer {
 }
 
 @media (max-width: 550px) {
-  header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
   .hazard-type-grid {
     grid-template-columns: repeat(2, 1fr);
   }

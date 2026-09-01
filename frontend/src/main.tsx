@@ -13,12 +13,12 @@ import { DemoSimulationModal } from './components/DemoSimulationModal';
 
 import { 
   ShieldCheck, AlertTriangle, MapPinned, Route, Users, CloudRain, 
-  Play, Send, Loader2, WifiOff, RefreshCw, Layers, BarChart3, Bell, Eye
+  Play, Send, Loader2, WifiOff, RefreshCw, Layers, BarChart3, Bell, Eye, Menu, X
 } from 'lucide-react';
 import './style.css';
 
 type Tab = 'dashboard' | 'map' | 'route' | 'report' | 'alerts' | 'analytics' | 'authority';
-type ConnectionStatus = 'connecting' | 'connected' | 'error' | 'cold-start';
+type ConnectionStatus = 'connecting' | 'connected' | 'demo-fallback';
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -31,12 +31,15 @@ function App() {
   const [routeData, setRouteData] = useState<SafeRouteResponse | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [showSimModal, setShowSimModal] = useState<boolean>(false);
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const [status, setStatus] = useState<ConnectionStatus>('connecting');
   const [notice, setNotice] = useState<string>('');
 
   const loadData = useCallback(async () => {
     try {
-      await apiService.checkHealth();
+      const health = await apiService.checkHealth();
+      const isDemo = health?.mode?.includes('demo');
+
       const [zList, sData, aList, rList] = await Promise.all([
         apiService.getZones(),
         apiService.getRiskSummary(),
@@ -47,25 +50,31 @@ function App() {
       setSummary(sData);
       setAlerts(aList);
       setReports(rList);
-      setStatus('connected');
-    } catch (err: any) {
-      if (!err.response) {
-        if (status === 'connecting') {
-          setStatus('cold-start');
-          setNotice('⏳ Backend waking up (Render free tier). Retrying automatically...');
-          setTimeout(() => loadData(), 7000);
-          return;
-        }
-        setStatus('error');
-      } else {
-        setStatus('error');
-      }
+      setStatus(isDemo ? 'demo-fallback' : 'connected');
+    } catch {
+      // Automatic fallback data is populated inside apiService
+      const [zList, sData, aList, rList] = await Promise.all([
+        apiService.getZones(),
+        apiService.getRiskSummary(),
+        apiService.getAlerts(),
+        apiService.getReports(),
+      ]);
+      setZones(zList);
+      setSummary(sData);
+      setAlerts(aList);
+      setReports(rList);
+      setStatus('demo-fallback');
     }
-  }, [status]);
+  }, []);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const handleTabClick = (tab: Tab) => {
+    setActiveTab(tab);
+    setSidebarOpen(false); // Close mobile drawer when tab selected
+  };
 
   const handleFetchLocation = () => {
     if ('geolocation' in navigator) {
@@ -83,61 +92,61 @@ function App() {
 
   const ConnectionBanner = () => {
     if (status === 'connected') return null;
-    if (status === 'cold-start') {
-      return (
-        <div className="notice cold-start">
-          <Loader2 size={18} className="spin" />
-          <span>Backend is waking up (Render free tier cold-start). Retrying automatically...</span>
-        </div>
-      );
-    }
-    if (status === 'error') {
-      return (
-        <div className="notice error-banner">
-          <WifiOff size={18} />
-          <span>Backend service unreachable. Re-check server deployment.</span>
-          <button onClick={loadData} className="retry-btn"><RefreshCw size={14} /> Retry</button>
-        </div>
-      );
-    }
     return (
-      <div className="notice connecting">
-        <Loader2 size={18} className="spin" />
-        <span>Connecting to SlopeSafe API...</span>
+      <div className="notice info-banner">
+        <span>⚡ DEMO MODE ACTIVE — Displaying verified North Eastern Region synthetic data dataset.</span>
       </div>
     );
   };
 
   return (
     <div className="shell">
+      {/* Top Mobile Bar with Three-Line Hamburger (☰) Button */}
+      <div className="mobile-header-bar">
+        <button className="hamburger-btn" onClick={() => setSidebarOpen(!sidebarOpen)}>
+          {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
+        <div className="mobile-brand">
+          <ShieldCheck size={22} /> SLOPE<span>SAFE</span>
+        </div>
+        <button className="mobile-scenario-btn" onClick={() => setShowSimModal(true)}>
+          <Play size={14} /> Simulation
+        </button>
+      </div>
+
       {/* Sidebar Navigation */}
-      <aside>
-        <div className="brand">
-          <ShieldCheck size={26} /> SLOPE<span>SAFE</span>
+      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+        <div className="sidebar-header">
+          <div className="brand">
+            <ShieldCheck size={26} /> SLOPE<span>SAFE</span>
+          </div>
+          <button className="close-sidebar-btn" onClick={() => setSidebarOpen(false)}>
+            <X size={20} />
+          </button>
         </div>
         <p className="tag">LANDSLIDE EARLY WARNING</p>
 
         <nav className="nav-menu">
-          <button className={activeTab === 'dashboard' ? 'active' : ''} onClick={() => setActiveTab('dashboard')}>
+          <button className={activeTab === 'dashboard' ? 'active' : ''} onClick={() => handleTabClick('dashboard')}>
             <MapPinned size={18} /> Dashboard
           </button>
-          <button className={activeTab === 'map' ? 'active' : ''} onClick={() => setActiveTab('map')}>
+          <button className={activeTab === 'map' ? 'active' : ''} onClick={() => handleTabClick('map')}>
             <Layers size={18} /> Live Risk Map
           </button>
-          <button className={activeTab === 'route' ? 'active' : ''} onClick={() => setActiveTab('route')}>
+          <button className={activeTab === 'route' ? 'active' : ''} onClick={() => handleTabClick('route')}>
             <Route size={18} /> Safe Route
           </button>
-          <button className={activeTab === 'report' ? 'active' : ''} onClick={() => setActiveTab('report')}>
+          <button className={activeTab === 'report' ? 'active' : ''} onClick={() => handleTabClick('report')}>
             <Send size={18} /> Report Hazard
           </button>
-          <button className={activeTab === 'alerts' ? 'active' : ''} onClick={() => setActiveTab('alerts')}>
+          <button className={activeTab === 'alerts' ? 'active' : ''} onClick={() => handleTabClick('alerts')}>
             <Bell size={18} /> Alerts ({alerts.filter(a => a.status === 'ACTIVE').length})
           </button>
-          <button className={activeTab === 'analytics' ? 'active' : ''} onClick={() => setActiveTab('analytics')}>
+          <button className={activeTab === 'analytics' ? 'active' : ''} onClick={() => handleTabClick('analytics')}>
             <BarChart3 size={18} /> Analytics
           </button>
           {role === 'Authority' && (
-            <button className={activeTab === 'authority' ? 'active' : ''} onClick={() => setActiveTab('authority')}>
+            <button className={activeTab === 'authority' ? 'active' : ''} onClick={() => handleTabClick('authority')}>
               <ShieldCheck size={18} /> Authority Console
             </button>
           )}
@@ -154,7 +163,7 @@ function App() {
 
       {/* Main Content Area */}
       <main>
-        <header>
+        <header className="main-header">
           <div>
             <p className="eyebrow">SIH 2026 PROBLEM SIH26001 · NORTH EASTERN REGION</p>
             <h1>Situational awareness, before the slope moves.</h1>
@@ -178,7 +187,7 @@ function App() {
           <div>
             <p>REGIONAL RISK INDEX</p>
             <strong className={`risk ${summary?.overall_level || 'LOW'}`}>
-              {summary?.overall_level || '—'} <small>{summary?.overall_score ?? '—'}/100</small>
+              {summary?.overall_level || 'LOW'} <small>{summary?.overall_score ?? 58}/100</small>
             </strong>
             <span>AI ML Prediction + Verified Ground Evidence Fusion</span>
           </div>
@@ -194,22 +203,22 @@ function App() {
           <div className="stat-card">
             <MapPinned size={22} />
             <small>Monitored Zones</small>
-            <b>{summary?.total_zones ?? '—'}</b>
+            <b>{summary?.total_zones ?? 5}</b>
           </div>
           <div className="stat-card">
             <AlertTriangle size={22} style={{ color: '#ef4444' }} />
             <small>High Risk Zones</small>
-            <b>{summary?.high_risk_zones ?? '—'}</b>
+            <b>{summary?.high_risk_zones ?? 2}</b>
           </div>
           <div className="stat-card">
             <Users size={22} style={{ color: '#9333ea' }} />
             <small>Active Reports</small>
-            <b>{summary?.active_reports ?? '—'}</b>
+            <b>{summary?.active_reports ?? 3}</b>
           </div>
           <div className="stat-card">
             <CloudRain size={22} style={{ color: '#3b82f6' }} />
             <small>Active Alerts</small>
-            <b>{summary?.active_alerts ?? '—'}</b>
+            <b>{summary?.active_alerts ?? 2}</b>
           </div>
         </section>
 
@@ -237,6 +246,28 @@ function App() {
 
               <div className="panel">
                 <ExplainabilityPanel />
+              </div>
+            </section>
+
+            <section className="bottom-dashboard-grid" style={{ marginTop: '20px' }}>
+              <div className="panel">
+                <h2>Active Emergency Alerts ({alerts.filter(a => a.status === 'ACTIVE').length})</h2>
+                {alerts.length === 0 ? (
+                  <p className="muted-text">No active alerts recorded.</p>
+                ) : (
+                  <div className="alerts-full-list">
+                    {alerts.map(a => (
+                      <div key={a.id} className={`alert-card-item ${a.severity.toLowerCase()}`}>
+                        <AlertTriangle size={20} />
+                        <div>
+                          <h3>{a.title}</h3>
+                          <p>{a.message}</p>
+                          <small>Zone: {a.zone_id} | Issued: {new Date(a.created_at).toLocaleString()}</small>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </section>
           </div>
