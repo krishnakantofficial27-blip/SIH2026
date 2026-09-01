@@ -1,42 +1,83 @@
 import React, { useState } from 'react';
 import { SafeRouteResponse } from '../types';
 import { apiService } from '../services/api';
-import { Route, MapPin, AlertTriangle, ShieldCheck, ArrowRight, Loader2, Info } from 'lucide-react';
+import { Route, MapPin, AlertTriangle, ShieldCheck, ArrowRight, Loader2 } from 'lucide-react';
+import axios from 'axios';
 
 interface SafeRoutePlannerProps {
   onRouteCalculated: (data: SafeRouteResponse) => void;
   userLocation?: { lat: number; lng: number } | null;
   onFetchLocation?: () => void;
+  onViewOnMap?: () => void;
 }
 
 const DEMO_PRESETS = [
-  { name: 'Shillong → Kohima', start: { lat: 25.58, lng: 91.89 }, end: { lat: 25.67, lng: 94.11 } },
-  { name: 'Aizawl → Imphal', start: { lat: 23.73, lng: 92.72 }, end: { lat: 24.82, lng: 93.94 } },
-  { name: 'Gangtok → Shillong', start: { lat: 27.33, lng: 88.61 }, end: { lat: 25.58, lng: 91.89 } },
+  { name: 'Shillong → Kohima', startName: 'Shillong', endName: 'Kohima', start: { lat: 25.58, lng: 91.89 }, end: { lat: 25.67, lng: 94.11 } },
+  { name: 'Aizawl → Imphal', startName: 'Aizawl', endName: 'Imphal', start: { lat: 23.73, lng: 92.72 }, end: { lat: 24.82, lng: 93.94 } },
+  { name: 'Gangtok → Shillong', startName: 'Gangtok', endName: 'Shillong', start: { lat: 27.33, lng: 88.61 }, end: { lat: 25.58, lng: 91.89 } },
 ];
 
 export const SafeRoutePlanner: React.FC<SafeRoutePlannerProps> = ({
   onRouteCalculated,
   userLocation,
   onFetchLocation,
+  onViewOnMap,
 }) => {
-  const [startLat, setStartLat] = useState<number>(25.58);
-  const [startLng, setStartLng] = useState<number>(91.89);
-  const [endLat, setEndLat] = useState<number>(25.67);
-  const [endLng, setEndLng] = useState<number>(94.11);
+  const [startName, setStartName] = useState<string>('Shillong');
+  const [endName, setEndName] = useState<string>('Kohima');
+  
+  const [explicitStartCoords, setExplicitStartCoords] = useState<{lat: number; lng: number} | null>({ lat: 25.58, lng: 91.89 });
+  const [explicitEndCoords, setExplicitEndCoords] = useState<{lat: number; lng: number} | null>({ lat: 25.67, lng: 94.11 });
+
   const [loading, setLoading] = useState<boolean>(false);
   const [routeResult, setRouteResult] = useState<SafeRouteResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState<string>('');
 
-  const handleCalculate = async (sLat = startLat, sLng = startLng, eLat = endLat, eLng = endLng) => {
+  const geocodePlace = async (place: string) => {
+    if (place.toLowerCase().includes('my location') && userLocation) {
+      return { lat: userLocation.lat, lng: userLocation.lng };
+    }
+    const res = await axios.get(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(place)}&format=json&limit=1`);
+    if (res.data && res.data.length > 0) {
+      return { lat: parseFloat(res.data[0].lat), lng: parseFloat(res.data[0].lon) };
+    }
+    throw new Error(`Could not find coordinates for "${place}". Please try a different name.`);
+  };
+
+  const handleCalculate = async () => {
+    if (!startName || !endName) {
+      setErrorMsg("Please enter both a start and destination location.");
+      return;
+    }
+    
     setLoading(true);
     setErrorMsg('');
     try {
+      let sLat, sLng, eLat, eLng;
+      
+      if (explicitStartCoords) {
+        sLat = explicitStartCoords.lat;
+        sLng = explicitStartCoords.lng;
+      } else {
+        const coords = await geocodePlace(startName);
+        sLat = coords.lat;
+        sLng = coords.lng;
+      }
+      
+      if (explicitEndCoords) {
+        eLat = explicitEndCoords.lat;
+        eLng = explicitEndCoords.lng;
+      } else {
+        const coords = await geocodePlace(endName);
+        eLat = coords.lat;
+        eLng = coords.lng;
+      }
+
       const data = await apiService.getSafeRoute(sLat, sLng, eLat, eLng);
       setRouteResult(data);
       onRouteCalculated(data);
     } catch (err: any) {
-      setErrorMsg('Failed to calculate safe route. Ensure coordinates are within North Eastern Region.');
+      setErrorMsg(err.message || 'Failed to calculate safe route. Ensure coordinates are valid.');
     } finally {
       setLoading(false);
     }
@@ -44,8 +85,8 @@ export const SafeRoutePlanner: React.FC<SafeRoutePlannerProps> = ({
 
   const applyUserLocationAsStart = () => {
     if (userLocation) {
-      setStartLat(userLocation.lat);
-      setStartLng(userLocation.lng);
+      setStartName('📍 My Current Location');
+      setExplicitStartCoords({ lat: userLocation.lat, lng: userLocation.lng });
     } else if (onFetchLocation) {
       onFetchLocation();
     }
@@ -69,11 +110,10 @@ export const SafeRoutePlanner: React.FC<SafeRoutePlannerProps> = ({
             key={p.name}
             className="preset-chip"
             onClick={() => {
-              setStartLat(p.start.lat);
-              setStartLng(p.start.lng);
-              setEndLat(p.end.lat);
-              setEndLng(p.end.lng);
-              handleCalculate(p.start.lat, p.start.lng, p.end.lat, p.end.lng);
+              setStartName(p.startName);
+              setEndName(p.endName);
+              setExplicitStartCoords(p.start);
+              setExplicitEndCoords(p.end);
             }}
           >
             {p.name}
@@ -84,19 +124,17 @@ export const SafeRoutePlanner: React.FC<SafeRoutePlannerProps> = ({
       {/* Input controls */}
       <div className="route-inputs-card">
         <div className="input-group">
-          <label>START LOCATION (Lat, Lng)</label>
+          <label>START LOCATION</label>
           <div className="coords-row">
             <input
-              type="number"
-              step="0.01"
-              value={startLat}
-              onChange={e => setStartLat(parseFloat(e.target.value))}
-            />
-            <input
-              type="number"
-              step="0.01"
-              value={startLng}
-              onChange={e => setStartLng(parseFloat(e.target.value))}
+              type="text"
+              value={startName}
+              placeholder="e.g. Guwahati"
+              onChange={e => {
+                setStartName(e.target.value);
+                setExplicitStartCoords(null);
+              }}
+              style={{ width: '100%', maxWidth: '400px' }}
             />
             <button className="loc-btn" onClick={applyUserLocationAsStart} title="Use My Location">
               <MapPin size={16} /> My Location
@@ -105,26 +143,24 @@ export const SafeRoutePlanner: React.FC<SafeRoutePlannerProps> = ({
         </div>
 
         <div className="input-group">
-          <label>DESTINATION LOCATION (Lat, Lng)</label>
+          <label>DESTINATION LOCATION</label>
           <div className="coords-row">
             <input
-              type="number"
-              step="0.01"
-              value={endLat}
-              onChange={e => setEndLat(parseFloat(e.target.value))}
-            />
-            <input
-              type="number"
-              step="0.01"
-              value={endLng}
-              onChange={e => setEndLng(parseFloat(e.target.value))}
+              type="text"
+              value={endName}
+              placeholder="e.g. Dimapur"
+              onChange={e => {
+                setEndName(e.target.value);
+                setExplicitEndCoords(null);
+              }}
+              style={{ width: '100%', maxWidth: '400px' }}
             />
           </div>
         </div>
 
         <button className="calc-btn" onClick={() => handleCalculate()} disabled={loading}>
           {loading ? <Loader2 size={18} className="spin" /> : <ArrowRight size={18} />}
-          {loading ? 'Calculating Safest Route...' : 'FIND SAFEST ROUTE'}
+          {loading ? 'Geocoding & Calculating...' : 'FIND SAFEST ROUTE'}
         </button>
       </div>
 

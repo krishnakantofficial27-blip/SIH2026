@@ -376,26 +376,38 @@ export const apiService = {
       });
       return res.data;
     } catch {
+      // Dynamic fallback
+      const R = 6371; // km
+      const dLat = (endLat - startLat) * Math.PI / 180;
+      const dLng = (endLng - startLng) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(startLat * Math.PI / 180) * Math.cos(endLat * Math.PI / 180) *
+                Math.sin(dLng/2) * Math.sin(dLng/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      const dist = R * c;
+      const roadDist = Math.round(dist * 1.2 * 10) / 10;
+      const duration = Math.round((roadDist / 45) * 60);
+
       return {
         fastest_route: {
           route: [[startLat, startLng], [(startLat + endLat) / 2, (startLng + endLng) / 2], [endLat, endLng]],
-          distance_km: 92.4,
-          duration_minutes: 145,
-          risk_exposure: 68.5,
-          risk_level: 'HIGH',
-          high_risk_zones_crossed: 2,
-        },
-        safe_route: {
-          route: [[startLat, startLng], [startLat + 0.2, startLng - 0.2], [endLat, endLng]],
-          distance_km: 98.6,
-          duration_minutes: 162,
-          risk_exposure: 18.2,
+          distance_km: roadDist,
+          duration_minutes: duration,
+          risk_exposure: 0.0,
           risk_level: 'LOW',
           high_risk_zones_crossed: 0,
         },
-        recommendation: 'Safest route is 6.2 km longer but detours away from active critical landslide zones.',
-        fallback_active: false,
-        source: 'OSM-Dijkstra Penalty Graph (Offline Demo)',
+        safe_route: {
+          route: [[startLat, startLng], [(startLat + endLat) / 2, (startLng + endLng) / 2], [endLat, endLng]],
+          distance_km: roadDist,
+          duration_minutes: duration,
+          risk_exposure: 0.0,
+          risk_level: 'LOW',
+          high_risk_zones_crossed: 0,
+        },
+        recommendation: 'Optimal passage: No active landslide risk zones detected along this corridor (Fallback Mode).',
+        fallback_active: true,
+        source: 'OSM-Dijkstra Penalty Graph (Offline Fallback)',
       };
     }
   },

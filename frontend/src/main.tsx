@@ -386,6 +386,7 @@ function App() {
                 <SafeRoutePlanner
                   onRouteCalculated={r => setRouteData(r)} userLocation={userLocation}
                   onFetchLocation={handleFetchLocation}
+                  onViewOnMap={() => setActiveTab('map')}
                 />
               </div>
             )}

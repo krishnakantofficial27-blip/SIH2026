@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Popup, Polyline, useMap, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Zone, CommunityReport, MapLayerState, SafeRouteResponse } from '../types';
 import { Layers, MapPin, Eye, Globe } from 'lucide-react';
@@ -50,13 +51,16 @@ const HISTORICAL_LANDSLIDES = [
   { id: 'HIST-4', name: 'Pakyong Airport Highway Slide (2023)', lat: 27.23, lng: 88.58, year: 2023 },
 ];
 
-const MapPanControl = ({ center }: { center: [number, number] | null }) => {
+const MapPanControl = ({ center, route }: { center: [number, number] | null, route?: [number, number][] | null }) => {
   const map = useMap();
   useEffect(() => {
-    if (center) {
+    if (route && route.length > 0) {
+      const bounds = L.latLngBounds(route.map(p => [p[0], p[1]]));
+      map.fitBounds(bounds, { padding: [50, 50], duration: 1.5 });
+    } else if (center) {
       map.flyTo(center, 13, { duration: 1.5 });
     }
-  }, [center, map]);
+  }, [center, route, map]);
   return null;
 };
 
@@ -152,11 +156,47 @@ export const RiskMap: React.FC<RiskMapProps> = ({
           </label>
         </div>
 
-        {onFetchLocation && (
-          <button className="my-location-btn" onClick={onFetchLocation}>
-            <MapPin size={15} /> {userLocation ? 'Location Active' : '📍 Use My Location'}
-          </button>
-        )}
+        <div className="location-actions" style={{ display: 'flex', gap: '8px', flex: 1, justifyContent: 'flex-end' }}>
+          {onLocationSelect && (
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              const form = e.target as HTMLFormElement;
+              const input = form.elements.namedItem('search') as HTMLInputElement;
+              if (input.value) {
+                try {
+                  const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(input.value)}&format=json&limit=1`);
+                  const data = await res.json();
+                  if (data && data.length > 0) {
+                    onLocationSelect(parseFloat(data[0].lat), parseFloat(data[0].lon));
+                    input.value = '';
+                  } else {
+                    alert('Location not found. Try a different name.');
+                  }
+                } catch (e) {
+                  console.error(e);
+                  alert('Error geocoding location.');
+                }
+              }
+            }} style={{ display: 'flex' }}>
+              <input 
+                name="search"
+                type="text" 
+                placeholder="Search location..." 
+                className="search-input"
+                style={{ padding: '4px 8px', borderRadius: '4px 0 0 4px', border: '1px solid #ccc', background: 'var(--bg-card)', color: '#fff' }}
+              />
+              <button type="submit" style={{ padding: '4px 8px', borderRadius: '0 4px 4px 0', border: '1px solid #ccc', borderLeft: 'none', background: 'var(--accent-primary)', color: '#fff', cursor: 'pointer' }}>
+                Search
+              </button>
+            </form>
+          )}
+
+          {onFetchLocation && (
+            <button className="my-location-btn" onClick={onFetchLocation}>
+              <MapPin size={15} /> {userLocation ? 'Location Active' : '📍 Use My Location'}
+            </button>
+          )}
+        </div>
       </div>
 
       <MapContainer
@@ -165,7 +205,10 @@ export const RiskMap: React.FC<RiskMapProps> = ({
         scrollWheelZoom={true}
         className="leaflet-map-canvas"
       >
-        <MapPanControl center={userLocation ? [userLocation.lat, userLocation.lng] : null} />
+        <MapPanControl 
+          center={userLocation ? [userLocation.lat, userLocation.lng] : null} 
+          route={routeData?.safe_route?.route as [number, number][] | undefined}
+        />
         <MapClickListener onLocationSelect={onLocationSelect} />
         <TileLayer
           key={tileStyle}
