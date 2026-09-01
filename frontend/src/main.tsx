@@ -1,322 +1,351 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
-import axios, { AxiosError } from 'axios';
-import { MapContainer, TileLayer, CircleMarker, Popup, Polyline } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-import { AlertTriangle, MapPinned, Route, ShieldCheck, Users, CloudRain, Play, Send, Loader2, WifiOff, RefreshCw } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { apiService } from './services/api';
+import { Zone, CommunityReport, Alert, RiskSummary, SafeRouteResponse } from './types';
+import { RiskMap } from './components/RiskMap';
+import { ZoneDetailModal } from './components/ZoneDetailModal';
+import { SafeRoutePlanner } from './components/SafeRoutePlanner';
+import { HazardReporter } from './components/HazardReporter';
+import { ExplainabilityPanel } from './components/ExplainabilityPanel';
+import { AnalyticsDashboard } from './components/AnalyticsDashboard';
+import { AuthorityConsole } from './components/AuthorityConsole';
+import { DemoSimulationModal } from './components/DemoSimulationModal';
+
+import { 
+  ShieldCheck, AlertTriangle, MapPinned, Route, Users, CloudRain, 
+  Play, Send, Loader2, WifiOff, RefreshCw, Layers, BarChart3, Bell, Eye
+} from 'lucide-react';
 import './style.css';
 
-/* ── API client with retry for Render cold-starts ── */
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-
-const api = axios.create({ baseURL: API_BASE, timeout: 60_000 });
-
-async function apiGet(url: string, retries = 3, delay = 5000): Promise<any> {
-  for (let i = 0; i < retries; i++) {
-    try {
-      const res = await api.get(url);
-      return res.data;
-    } catch (err) {
-      const isLastAttempt = i === retries - 1;
-      if (isLastAttempt) throw err;
-      // On network errors / 5xx, wait and retry (Render cold-start)
-      const status = (err as AxiosError)?.response?.status;
-      if (status && status < 500) throw err; // 4xx errors are not retryable
-      await new Promise(r => setTimeout(r, delay));
-    }
-  }
-}
-
-/* ── Types ── */
-type Zone = {
-  id: string; name: string; lat: number; lng: number;
-  risk_score: number; risk_level: string;
-  rainfall_24h: number; slope_deg: number; soil_moisture: number;
-};
-
-const colors: Record<string, string> = {
-  LOW: '#22c55e', MODERATE: '#eab308', HIGH: '#f97316', CRITICAL: '#ef4444',
-};
-
+type Tab = 'dashboard' | 'map' | 'route' | 'report' | 'alerts' | 'analytics' | 'authority';
 type ConnectionStatus = 'connecting' | 'connected' | 'error' | 'cold-start';
 
-/* ── App ── */
 function App() {
+  const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+  const [role, setRole] = useState<'Resident' | 'Authority'>('Resident');
   const [zones, setZones] = useState<Zone[]>([]);
-  const [summary, setSummary] = useState<any>();
-  const [alerts, setAlerts] = useState<any[]>([]);
-  const [reports, setReports] = useState<any[]>([]);
-  const [trends, setTrends] = useState<any[]>([]);
-  const [route, setRoute] = useState<any>();
-  const [message, setMessage] = useState('');
-  const [role, setRole] = useState('Resident');
+  const [summary, setSummary] = useState<RiskSummary | null>(null);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [reports, setReports] = useState<CommunityReport[]>([]);
+  const [selectedZone, setSelectedZone] = useState<Zone | null>(null);
+  const [routeData, setRouteData] = useState<SafeRouteResponse | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [showSimModal, setShowSimModal] = useState<boolean>(false);
   const [status, setStatus] = useState<ConnectionStatus>('connecting');
-  const [loading, setLoading] = useState(true);
+  const [notice, setNotice] = useState<string>('');
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const loadData = useCallback(async () => {
     try {
-      // First, check health endpoint to verify backend is reachable
-      await api.get('/api/health');
-
-      const [z, s, a, r, t] = await Promise.all([
-        apiGet('/api/zones'),
-        apiGet('/api/risk-summary'),
-        apiGet('/api/alerts'),
-        apiGet('/api/reports'),
-        apiGet('/api/risk-trends'),
+      await apiService.checkHealth();
+      const [zList, sData, aList, rList] = await Promise.all([
+        apiService.getZones(),
+        apiService.getRiskSummary(),
+        apiService.getAlerts(),
+        apiService.getReports(),
       ]);
-      setZones(z); setSummary(s); setAlerts(a); setReports(r); setTrends(t);
+      setZones(zList);
+      setSummary(sData);
+      setAlerts(aList);
+      setReports(rList);
       setStatus('connected');
-      setMessage('');
-    } catch (err) {
-      const axErr = err as AxiosError;
-      if (!axErr.response) {
-        // Network error — either CORS blocked, backend down, or cold-starting
+    } catch (err: any) {
+      if (!err.response) {
         if (status === 'connecting') {
           setStatus('cold-start');
-          setMessage('⏳ Backend is waking up (Render free tier cold-start). This may take 30–50 seconds. Retrying automatically…');
-          // Auto-retry after delay
-          setTimeout(() => load(), 8000);
+          setNotice('⏳ Backend waking up (Render free tier). Retrying automatically...');
+          setTimeout(() => loadData(), 7000);
           return;
         }
         setStatus('error');
-        setMessage('Unable to reach the API server. Please check that the backend is deployed and running.');
       } else {
         setStatus('error');
-        setMessage(`API error: ${axErr.response.status} — ${axErr.response.statusText}`);
       }
-    } finally {
-      setLoading(false);
     }
-  }, []);
+  }, [status]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
-  const run = async () => {
-    try {
-      await api.post('/api/demo/emergency');
-      setMessage('✅ Emergency scenario complete: rainfall, risk, alert and verified reports updated.');
-      load();
-    } catch {
-      setMessage('Failed to run emergency scenario. Check backend connection.');
-    }
-  };
-
-  const find = async () => {
-    try {
-      const r = await api.get('/api/safe-route', {
-        params: { start_lat: 25.58, start_lng: 91.89, end_lat: 25.67, end_lng: 94.11 },
-      });
-      setRoute(r.data);
-      setMessage(r.data.recommendation);
-    } catch {
-      setMessage('Failed to find safe route. Check backend connection.');
+  const handleFetchLocation = () => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          setNotice('📍 GPS location acquired successfully.');
+        },
+        () => {
+          setNotice('⚠️ GPS permission denied. Manual location selection active.');
+        }
+      );
     }
   };
 
-  const submit = async (e: any) => {
-    e.preventDefault();
-    try {
-      const f = new FormData(e.currentTarget);
-      await api.post('/api/reports', {
-        report_type: f.get('type'),
-        description: f.get('description'),
-        severity: f.get('severity'),
-        latitude: 25.58, longitude: 91.89,
-      });
-      setMessage('✅ Report submitted for moderation.');
-      e.currentTarget.reset();
-      load();
-    } catch {
-      setMessage('Failed to submit report. Check backend connection.');
-    }
-  };
-
-  /* ── Connection Banner ── */
   const ConnectionBanner = () => {
     if (status === 'connected') return null;
-    if (status === 'cold-start') return (
-      <div className="notice cold-start">
-        <Loader2 size={18} className="spin" />
-        <span>Backend is waking up — free-tier services sleep after 15 min of inactivity. Retrying automatically…</span>
-      </div>
-    );
-    if (status === 'error') return (
-      <div className="notice error-banner">
-        <WifiOff size={18} />
-        <span>Unable to reach API at <code>{API_BASE}</code></span>
-        <button onClick={load} className="retry-btn"><RefreshCw size={14} /> Retry</button>
-      </div>
-    );
+    if (status === 'cold-start') {
+      return (
+        <div className="notice cold-start">
+          <Loader2 size={18} className="spin" />
+          <span>Backend is waking up (Render free tier cold-start). Retrying automatically...</span>
+        </div>
+      );
+    }
+    if (status === 'error') {
+      return (
+        <div className="notice error-banner">
+          <WifiOff size={18} />
+          <span>Backend service unreachable. Re-check server deployment.</span>
+          <button onClick={loadData} className="retry-btn"><RefreshCw size={14} /> Retry</button>
+        </div>
+      );
+    }
     return (
       <div className="notice connecting">
         <Loader2 size={18} className="spin" />
-        <span>Connecting to backend…</span>
+        <span>Connecting to SlopeSafe API...</span>
       </div>
     );
   };
 
   return (
     <div className="shell">
+      {/* Sidebar Navigation */}
       <aside>
-        <div className="brand"><ShieldCheck /> SLOPE<span>SAFE</span></div>
+        <div className="brand">
+          <ShieldCheck size={26} /> SLOPE<span>SAFE</span>
+        </div>
         <p className="tag">LANDSLIDE EARLY WARNING</p>
-        {['Dashboard', 'Risk Map', 'Safe Route', 'Community Reports', 'Alerts', 'Analytics'].map(x => (
-          <a key={x} href={'#' + x}>{x}</a>
-        ))}
-        <div className="role">
+
+        <nav className="nav-menu">
+          <button className={activeTab === 'dashboard' ? 'active' : ''} onClick={() => setActiveTab('dashboard')}>
+            <MapPinned size={18} /> Dashboard
+          </button>
+          <button className={activeTab === 'map' ? 'active' : ''} onClick={() => setActiveTab('map')}>
+            <Layers size={18} /> Live Risk Map
+          </button>
+          <button className={activeTab === 'route' ? 'active' : ''} onClick={() => setActiveTab('route')}>
+            <Route size={18} /> Safe Route
+          </button>
+          <button className={activeTab === 'report' ? 'active' : ''} onClick={() => setActiveTab('report')}>
+            <Send size={18} /> Report Hazard
+          </button>
+          <button className={activeTab === 'alerts' ? 'active' : ''} onClick={() => setActiveTab('alerts')}>
+            <Bell size={18} /> Alerts ({alerts.filter(a => a.status === 'ACTIVE').length})
+          </button>
+          <button className={activeTab === 'analytics' ? 'active' : ''} onClick={() => setActiveTab('analytics')}>
+            <BarChart3 size={18} /> Analytics
+          </button>
+          {role === 'Authority' && (
+            <button className={activeTab === 'authority' ? 'active' : ''} onClick={() => setActiveTab('authority')}>
+              <ShieldCheck size={18} /> Authority Console
+            </button>
+          )}
+        </nav>
+
+        <div className="role-switcher">
           <small>DEMO ROLE</small>
-          <select value={role} onChange={e => setRole(e.target.value)}>
-            <option>Resident</option><option>Authority</option>
+          <select value={role} onChange={e => setRole(e.target.value as any)}>
+            <option value="Resident">Resident View</option>
+            <option value="Authority">Authority View</option>
           </select>
         </div>
       </aside>
 
+      {/* Main Content Area */}
       <main>
         <header>
           <div>
-            <p className="eyebrow">NORTH EASTERN REGION · SYNTHETIC DEMO DATA</p>
+            <p className="eyebrow">SIH 2026 PROBLEM SIH26001 · NORTH EASTERN REGION</p>
             <h1>Situational awareness, before the slope moves.</h1>
           </div>
-          <button className="scenario" onClick={run} disabled={status !== 'connected'}>
-            <Play size={16} /> Run Emergency Scenario
+          <button className="scenario-btn" onClick={() => setShowSimModal(true)}>
+            <Play size={16} /> Run Emergency Simulation
           </button>
         </header>
 
         <ConnectionBanner />
 
-        {message && status === 'connected' && (
-          <div className="notice">
-            {message}
-            <button onClick={() => setMessage('')}>×</button>
+        {notice && (
+          <div className="notice info-banner">
+            <span>{notice}</span>
+            <button onClick={() => setNotice('')} className="dismiss-btn">×</button>
           </div>
         )}
 
+        {/* Hero Card */}
         <section className="hero">
           <div>
-            <p>OVERALL RISK</p>
-            <strong className={'risk ' + (summary?.overall_level || 'LOW')}>
-              {loading && !summary ? 'Loading' : summary?.overall_level || '—'}{' '}
-              <small>{summary?.overall_score ?? '—'}/100</small>
+            <p>REGIONAL RISK INDEX</p>
+            <strong className={`risk ${summary?.overall_level || 'LOW'}`}>
+              {summary?.overall_level || '—'} <small>{summary?.overall_score ?? '—'}/100</small>
             </strong>
-            <span>Updated from environment + verified community signals</span>
+            <span>AI ML Prediction + Verified Ground Evidence Fusion</span>
           </div>
-          <div className="quick">
-            <button onClick={find} disabled={status !== 'connected'}><Route /> Find safest route</button>
-            <button onClick={() => document.getElementById('report')?.scrollIntoView()}><Send /> Report a hazard</button>
+
+          <div className="quick-actions">
+            <button onClick={() => setActiveTab('route')}><Route size={16} /> Find Safe Route</button>
+            <button onClick={() => setActiveTab('report')}><Send size={16} /> Report Hazard</button>
           </div>
         </section>
 
+        {/* Stats Grid */}
         <section className="stats">
-          {([
-            [MapPinned, 'Monitored zones', summary?.total_zones],
-            [AlertTriangle, 'High-risk zones', summary?.high_risk_zones],
-            [Users, 'Active reports', summary?.active_reports],
-            [CloudRain, 'Active alerts', summary?.active_alerts],
-          ] as [any, string, any][]).map(([I, l, v]) => (
-            <div className="card" key={l}><I /><small>{l}</small><b>{v ?? '—'}</b></div>
-          ))}
-        </section>
-
-        <section className="grid">
-          <div className="panel map">
-            <div className="panelhead">
-              <h2>Live risk map</h2>
-              <span>● Demo data</span>
-            </div>
-            <MapContainer center={[25.6, 92.7]} zoom={6} scrollWheelZoom className="leaf">
-              <TileLayer
-                attribution="© OpenStreetMap"
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-              {zones.map(z => (
-                <CircleMarker key={z.id} center={[z.lat, z.lng]} radius={14}
-                  pathOptions={{ color: colors[z.risk_level], fillOpacity: .65 }}>
-                  <Popup>
-                    <b>{z.name}</b><br />
-                    {z.risk_level} · {z.risk_score}/100<br />
-                    Rainfall: {z.rainfall_24h} mm / 24h
-                  </Popup>
-                </CircleMarker>
-              ))}
-              {reports.map((r: any) => (
-                <CircleMarker key={r.id} center={[r.latitude, r.longitude]} radius={7}
-                  pathOptions={{ color: r.status === 'VERIFIED' ? '#7c3aed' : '#64748b' }}>
-                  <Popup>{r.report_type}: {r.status}</Popup>
-                </CircleMarker>
-              ))}
-              {route && <Polyline positions={route.route} pathOptions={{ color: '#14b8a6', weight: 5 }} />}
-            </MapContainer>
-            <div className="legend">
-              {Object.entries(colors).map(([x, c]) => (
-                <span key={x} style={{ borderColor: c }}>{x}</span>
-              ))}
-            </div>
+          <div className="stat-card">
+            <MapPinned size={22} />
+            <small>Monitored Zones</small>
+            <b>{summary?.total_zones ?? '—'}</b>
           </div>
-
-          <div className="panel trend">
-            <h2>Risk trend · 72h</h2>
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={trends}>
-                <XAxis dataKey="hour" /><YAxis /><Tooltip />
-                <Line type="monotone" dataKey="risk" stroke="#f97316" strokeWidth={3} />
-              </LineChart>
-            </ResponsiveContainer>
-            <p>Model estimates, not an official government warning.</p>
+          <div className="stat-card">
+            <AlertTriangle size={22} style={{ color: '#ef4444' }} />
+            <small>High Risk Zones</small>
+            <b>{summary?.high_risk_zones ?? '—'}</b>
+          </div>
+          <div className="stat-card">
+            <Users size={22} style={{ color: '#9333ea' }} />
+            <small>Active Reports</small>
+            <b>{summary?.active_reports ?? '—'}</b>
+          </div>
+          <div className="stat-card">
+            <CloudRain size={22} style={{ color: '#3b82f6' }} />
+            <small>Active Alerts</small>
+            <b>{summary?.active_alerts ?? '—'}</b>
           </div>
         </section>
 
-        {route && (
-          <section className="route">
-            <Route />
-            <div>
-              <b>Safest route found</b>
-              <p>{route.distance_km} km · ~{route.duration_minutes} min · exposure {route.risk_exposure}/100 · {route.high_risk_zones} high-risk zones crossed</p>
-            </div>
-            <span>{route.source}</span>
-          </section>
+        {/* Tab Views */}
+        {activeTab === 'dashboard' && (
+          <div className="tab-container">
+            <section className="grid-two">
+              <div className="panel">
+                <div className="panelhead">
+                  <h2>Live Risk Map Overview</h2>
+                  <button className="text-link" onClick={() => setActiveTab('map')}>Expand Full Map →</button>
+                </div>
+                <RiskMap
+                  zones={zones}
+                  reports={reports}
+                  selectedZone={selectedZone}
+                  onSelectZone={z => setSelectedZone(z)}
+                  onOpenReportModal={() => setActiveTab('report')}
+                  onNavigateToRoute={() => setActiveTab('route')}
+                  routeData={routeData}
+                  userLocation={userLocation}
+                  onFetchLocation={handleFetchLocation}
+                />
+              </div>
+
+              <div className="panel">
+                <ExplainabilityPanel />
+              </div>
+            </section>
+          </div>
         )}
 
-        <section className="bottom">
-          <div className="panel">
-            <h2>Active alerts</h2>
-            {alerts.length ? alerts.map((a: any) => (
-              <div className="alert" key={a.id}>
-                <AlertTriangle />
-                <div><b>{a.title}</b><p>{a.message}</p></div>
-                <em>{a.severity}</em>
-              </div>
-            )) : <p className="muted">No active alerts. Conditions are being monitored.</p>}
+        {activeTab === 'map' && (
+          <div className="tab-container">
+            <RiskMap
+              zones={zones}
+              reports={reports}
+              selectedZone={selectedZone}
+              onSelectZone={z => setSelectedZone(z)}
+              onOpenReportModal={() => setActiveTab('report')}
+              onNavigateToRoute={() => setActiveTab('route')}
+              routeData={routeData}
+              userLocation={userLocation}
+              onFetchLocation={handleFetchLocation}
+            />
           </div>
+        )}
 
-          <form id="report" className="panel" onSubmit={submit}>
-            <h2>Report ground conditions</h2>
-            <p>Do you see signs of possible landslide activity near you?</p>
-            <label>Warning sign
-              <select name="type">
-                <option>CRACK</option><option>WATER_SEEPAGE</option>
-                <option>SLOPE_MOVEMENT</option><option>FALLING_DEBRIS</option><option>OTHER</option>
-              </select>
-            </label>
-            <label>Severity
-              <select name="severity">
-                <option>MODERATE</option><option>HIGH</option><option>CRITICAL</option>
-              </select>
-            </label>
-            <label>Description
-              <textarea name="description" minLength={3} required placeholder="Describe what you see…" />
-            </label>
-            <button className="submit" type="submit" disabled={status !== 'connected'}>
-              <Send size={16} /> Submit report
-            </button>
-          </form>
-        </section>
+        {activeTab === 'route' && (
+          <div className="tab-container">
+            <SafeRoutePlanner
+              onRouteCalculated={r => setRouteData(r)}
+              userLocation={userLocation}
+              onFetchLocation={handleFetchLocation}
+            />
+          </div>
+        )}
 
+        {activeTab === 'report' && (
+          <div className="tab-container">
+            <HazardReporter
+              onReportSubmitted={loadData}
+              userLocation={userLocation}
+              onFetchLocation={handleFetchLocation}
+            />
+          </div>
+        )}
+
+        {activeTab === 'alerts' && (
+          <div className="tab-container">
+            <div className="panel">
+              <h2>Active System & Community Emergency Alerts</h2>
+              {alerts.length === 0 ? (
+                <p className="muted-text">No active alerts recorded.</p>
+              ) : (
+                <div className="alerts-full-list">
+                  {alerts.map(a => (
+                    <div key={a.id} className={`alert-card-item ${a.severity.toLowerCase()}`}>
+                      <AlertTriangle size={24} />
+                      <div>
+                        <h3>{a.title}</h3>
+                        <p>{a.message}</p>
+                        <small>Zone: {a.zone_id} | Issued: {new Date(a.created_at).toLocaleString()}</small>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'analytics' && (
+          <div className="tab-container">
+            <AnalyticsDashboard />
+          </div>
+        )}
+
+        {activeTab === 'authority' && role === 'Authority' && (
+          <div className="tab-container">
+            <AuthorityConsole
+              zones={zones}
+              reports={reports}
+              alerts={alerts}
+              onRefresh={loadData}
+            />
+          </div>
+        )}
+
+        {/* Zone Inspection Modal */}
+        {selectedZone && (
+          <ZoneDetailModal
+            zone={selectedZone}
+            onClose={() => setSelectedZone(null)}
+            onNavigateToRoute={() => {
+              setSelectedZone(null);
+              setActiveTab('route');
+            }}
+            onNavigateToReport={() => {
+              setSelectedZone(null);
+              setActiveTab('report');
+            }}
+          />
+        )}
+
+        {/* Demo Emergency Simulation Modal */}
+        {showSimModal && (
+          <DemoSimulationModal
+            onClose={() => setShowSimModal(false)}
+            onSimulationComplete={loadData}
+          />
+        )}
+
+        {/* Footer Disclaimer */}
         <footer>
-          This system is a prototype decision-support tool. Risk predictions are estimates and should not
-          replace official government warnings, geological assessments, or emergency instructions.
+          This system is a prototype decision-support tool. Predictions are estimates and should not replace official government warnings, geological assessments, or emergency instructions.
         </footer>
       </main>
     </div>

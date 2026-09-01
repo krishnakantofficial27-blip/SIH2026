@@ -8,3 +8,6 @@ backend/uploads/
 *.tsbuildinfo
 .env
 .env.local
+
+.vercel
+.env*
