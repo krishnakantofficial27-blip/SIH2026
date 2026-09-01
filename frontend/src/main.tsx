@@ -358,6 +358,7 @@ function App() {
                   onSelectZone={z => setSelectedZone(z)} onOpenReportModal={() => setActiveTab('report')}
                   onNavigateToRoute={() => setActiveTab('route')} routeData={routeData}
                   userLocation={userLocation} onFetchLocation={handleFetchLocation} lang={lang}
+                  onLocationSelect={(lat, lng) => setUserLocation({ lat, lng })}
                 />
               </div>
             )}
@@ -370,7 +371,7 @@ function App() {
 
             {activeTab === 'weather' && (
               <div className="tab-container">
-                <WeatherForecast />
+                <WeatherForecast userLocation={userLocation} />
               </div>
             )}
 

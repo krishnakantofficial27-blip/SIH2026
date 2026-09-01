@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Popup, Polyline, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Popup, Polyline, useMap, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Zone, CommunityReport, MapLayerState, SafeRouteResponse } from '../types';
 import { Layers, MapPin, Eye, Globe } from 'lucide-react';
@@ -14,6 +14,7 @@ interface RiskMapProps {
   routeData?: SafeRouteResponse | null;
   userLocation?: { lat: number; lng: number } | null;
   onFetchLocation?: () => void;
+  onLocationSelect?: (lat: number, lng: number) => void;
   lang?: 'en' | 'hi' | 'as';
 }
 
@@ -26,8 +27,8 @@ const RISK_COLORS: Record<string, string> = {
 
 const MAP_TILES = {
   standard: {
-    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     name: '🗺️ Standard',
   },
   satellite: {
@@ -53,9 +54,20 @@ const MapPanControl = ({ center }: { center: [number, number] | null }) => {
   const map = useMap();
   useEffect(() => {
     if (center) {
-      map.flyTo(center, 13);
+      map.flyTo(center, 13, { duration: 1.5 });
     }
   }, [center, map]);
+  return null;
+};
+
+const MapClickListener = ({ onLocationSelect }: { onLocationSelect?: (lat: number, lng: number) => void }) => {
+  useMapEvents({
+    click(e) {
+      if (onLocationSelect) {
+        onLocationSelect(e.latlng.lat, e.latlng.lng);
+      }
+    }
+  });
   return null;
 };
 
@@ -67,6 +79,7 @@ export const RiskMap: React.FC<RiskMapProps> = ({
   routeData,
   userLocation,
   onFetchLocation,
+  onLocationSelect,
 }) => {
   const [tileStyle, setTileStyle] = useState<'standard' | 'satellite' | 'terrain'>('standard');
   const [layers, setLayers] = useState<MapLayerState>({
@@ -153,6 +166,7 @@ export const RiskMap: React.FC<RiskMapProps> = ({
         className="leaflet-map-canvas"
       >
         <MapPanControl center={userLocation ? [userLocation.lat, userLocation.lng] : null} />
+        <MapClickListener onLocationSelect={onLocationSelect} />
         <TileLayer
           key={tileStyle}
           attribution={MAP_TILES[tileStyle].attribution}

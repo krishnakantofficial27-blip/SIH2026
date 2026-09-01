@@ -1,5 +1,6 @@
-import React from 'react';
-import { CloudRain, Sun, CloudSun, CloudLightning, Umbrella, TrendingUp, ThermometerSun } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { CloudRain, Sun, CloudSun, CloudLightning, Umbrella, TrendingUp, ThermometerSun, Loader2 } from 'lucide-react';
+import axios from 'axios';
 
 interface ForecastDay {
   day: string;
@@ -15,32 +16,122 @@ interface ForecastDay {
   risk_level: string;
 }
 
-const FORECAST_DATA: ForecastDay[] = [
-  { day: 'Today', date: 'Sep 1', icon: '🌧️', condition: 'Heavy Rain', temp_high: 24, temp_low: 18, rainfall_mm: 42, humidity: 88, wind_kmh: 22, risk_projection: 72, risk_level: 'HIGH' },
-  { day: 'Tue', date: 'Sep 2', icon: '⛈️', condition: 'Thunderstorm', temp_high: 22, temp_low: 17, rainfall_mm: 68, humidity: 92, wind_kmh: 35, risk_projection: 85, risk_level: 'CRITICAL' },
-  { day: 'Wed', date: 'Sep 3', icon: '🌧️', condition: 'Moderate Rain', temp_high: 23, temp_low: 18, rainfall_mm: 35, humidity: 82, wind_kmh: 18, risk_projection: 68, risk_level: 'HIGH' },
-  { day: 'Thu', date: 'Sep 4', icon: '🌦️', condition: 'Light Showers', temp_high: 25, temp_low: 19, rainfall_mm: 12, humidity: 72, wind_kmh: 14, risk_projection: 48, risk_level: 'MODERATE' },
-  { day: 'Fri', date: 'Sep 5', icon: '⛅', condition: 'Partly Cloudy', temp_high: 27, temp_low: 20, rainfall_mm: 4, humidity: 60, wind_kmh: 10, risk_projection: 32, risk_level: 'MODERATE' },
-  { day: 'Sat', date: 'Sep 6', icon: '☀️', condition: 'Clear', temp_high: 29, temp_low: 21, rainfall_mm: 0, humidity: 48, wind_kmh: 8, risk_projection: 22, risk_level: 'LOW' },
-  { day: 'Sun', date: 'Sep 7', icon: '🌤️', condition: 'Sunny', temp_high: 30, temp_low: 22, rainfall_mm: 1, humidity: 45, wind_kmh: 6, risk_projection: 18, risk_level: 'LOW' },
-];
+interface WeatherForecastProps {
+  userLocation?: { lat: number; lng: number } | null;
+}
 
 const getRiskColor = (level: string) => {
   const map: Record<string, string> = { LOW: '#22c55e', MODERATE: '#eab308', HIGH: '#f97316', CRITICAL: '#ef4444' };
   return map[level] || '#94a3b8';
 };
 
-export const WeatherForecast: React.FC = () => {
-  const peakDay = FORECAST_DATA.reduce((max, d) => d.risk_projection > max.risk_projection ? d : max, FORECAST_DATA[0]);
-  const totalRainfall = FORECAST_DATA.reduce((sum, d) => sum + d.rainfall_mm, 0);
+const parseWMOCode = (code: number): { icon: string, condition: string } => {
+  if (code === 0) return { icon: '☀️', condition: 'Clear' };
+  if (code === 1 || code === 2) return { icon: '⛅', condition: 'Partly Cloudy' };
+  if (code === 3) return { icon: '☁️', condition: 'Overcast' };
+  if (code >= 45 && code <= 48) return { icon: '🌫️', condition: 'Fog' };
+  if (code >= 51 && code <= 55) return { icon: '🌦️', condition: 'Drizzle' };
+  if (code >= 61 && code <= 65) return { icon: '🌧️', condition: 'Rain' };
+  if (code >= 71 && code <= 77) return { icon: '❄️', condition: 'Snow' };
+  if (code >= 80 && code <= 82) return { icon: '🌧️', condition: 'Heavy Rain' };
+  if (code >= 95 && code <= 99) return { icon: '⛈️', condition: 'Thunderstorm' };
+  return { icon: '🌤️', condition: 'Unknown' };
+};
+
+export const WeatherForecast: React.FC<WeatherForecastProps> = ({ userLocation }) => {
+  const [forecastData, setForecastData] = useState<ForecastDay[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchWeather = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const lat = userLocation ? userLocation.lat : 25.58;
+        const lng = userLocation ? userLocation.lng : 91.89;
+        
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max&timezone=auto`;
+        const res = await axios.get(url);
+        
+        const daily = res.data.daily;
+        const days: ForecastDay[] = [];
+        
+        for (let i = 0; i < 7; i++) {
+          const dateObj = new Date(daily.time[i]);
+          const dayName = i === 0 ? 'Today' : dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+          const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          
+          const wmo = parseWMOCode(daily.weathercode[i]);
+          const rain = daily.precipitation_sum[i] || 0;
+          
+          // Compute Risk based strictly on real forecasted rain
+          let newRisk = 10; // Baseline
+          if (rain > 10) newRisk += rain * 1.5;
+          if (rain > 50) newRisk += 20; // Critical threshold jump
+          newRisk = Math.min(100, Math.round(newRisk));
+          
+          let newLevel = 'LOW';
+          if (newRisk > 75) newLevel = 'CRITICAL';
+          else if (newRisk > 50) newLevel = 'HIGH';
+          else if (newRisk > 25) newLevel = 'MODERATE';
+          
+          days.push({
+            day: dayName,
+            date: dateStr,
+            icon: wmo.icon,
+            condition: wmo.condition,
+            temp_high: Math.round(daily.temperature_2m_max[i]),
+            temp_low: Math.round(daily.temperature_2m_min[i]),
+            rainfall_mm: rain,
+            humidity: 70 + Math.round(Math.random() * 20), // Placeholder as open-meteo daily lacks relative humidity without hourly aggregation
+            wind_kmh: Math.round(daily.windspeed_10m_max[i] || 10),
+            risk_projection: newRisk,
+            risk_level: newLevel
+          });
+        }
+        setForecastData(days);
+      } catch (err) {
+        setError('Failed to fetch live meteorological data.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchWeather();
+  }, [userLocation]);
+
+  if (loading) {
+    return (
+      <div className="weather-forecast" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
+        <Loader2 className="animate-spin" size={32} style={{ color: 'var(--accent-primary)' }} />
+        <span style={{ marginLeft: '12px' }}>Connecting to Open-Meteo Satellite API...</span>
+      </div>
+    );
+  }
+
+  if (error || forecastData.length === 0) {
+    return (
+      <div className="weather-forecast" style={{ padding: '24px', color: 'var(--risk-crit)' }}>
+        ⚠️ {error || 'No forecast data available.'}
+      </div>
+    );
+  }
+
+  const peakDay = forecastData.reduce((max, d) => d.risk_projection > max.risk_projection ? d : max, forecastData[0]);
+  const totalRainfall = Math.round(forecastData.reduce((sum, d) => sum + d.rainfall_mm, 0) * 10) / 10;
 
   return (
     <div className="weather-forecast">
       <div className="weather-header">
         <CloudRain size={24} className="brand-icon" />
         <div>
-          <h2>7-Day Weather Forecast & Risk Projection</h2>
-          <p>IMD-correlated rainfall forecast with ML-driven landslide risk projection for the NE Region</p>
+          <h2>Live Meteorological Forecast & Risk Model</h2>
+          <p>
+            {userLocation 
+              ? `Real-time Open-Meteo forecast targeting coordinates [${userLocation.lat.toFixed(4)}, ${userLocation.lng.toFixed(4)}]` 
+              : 'Real-time Open-Meteo forecast targeting default region [25.58, 91.89]'}
+          </p>
         </div>
       </div>
 
@@ -64,14 +155,14 @@ export const WeatherForecast: React.FC = () => {
           <ThermometerSun size={18} />
           <div>
             <small>Temperature Range</small>
-            <strong>{Math.min(...FORECAST_DATA.map(d => d.temp_low))}° — {Math.max(...FORECAST_DATA.map(d => d.temp_high))}°C</strong>
+            <strong>{Math.min(...forecastData.map(d => d.temp_low))}° — {Math.max(...forecastData.map(d => d.temp_high))}°C</strong>
           </div>
         </div>
       </div>
 
       {/* Forecast Cards Grid */}
       <div className="forecast-grid">
-        {FORECAST_DATA.map(d => (
+        {forecastData.map(d => (
           <div key={d.day} className={`forecast-card ${d.day === 'Today' ? 'today' : ''}`}>
             <div className="forecast-day-label">{d.day}</div>
             <div className="forecast-date">{d.date}</div>
@@ -83,7 +174,6 @@ export const WeatherForecast: React.FC = () => {
             </div>
             <div className="forecast-detail">
               <span>🌧️ {d.rainfall_mm} mm</span>
-              <span>💧 {d.humidity}%</span>
               <span>💨 {d.wind_kmh} km/h</span>
             </div>
             <div className="forecast-risk-bar">
@@ -102,7 +192,7 @@ export const WeatherForecast: React.FC = () => {
       <div className="rainfall-bar-chart">
         <h3>Rainfall Accumulation (mm)</h3>
         <div className="rain-bars">
-          {FORECAST_DATA.map(d => (
+          {forecastData.map(d => (
             <div key={d.day} className="rain-bar-col">
               <div className="rain-bar-value">{d.rainfall_mm}</div>
               <div className="rain-bar" style={{ height: `${Math.max(4, (d.rainfall_mm / 80) * 100)}%`, background: getRiskColor(d.risk_level) }}></div>
@@ -113,7 +203,7 @@ export const WeatherForecast: React.FC = () => {
       </div>
 
       <div className="weather-footer">
-        <span>⚠️ Forecast data simulated for prototype demonstration. Production system integrates with IMD, ECMWF, and GPM satellite APIs.</span>
+        <span>⚠️ Powered by live Open-Meteo API. Risk projection dynamically computed from live precipitation payload.</span>
       </div>
     </div>
   );
