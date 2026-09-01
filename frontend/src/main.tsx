@@ -10,10 +10,12 @@ import { ExplainabilityPanel } from './components/ExplainabilityPanel';
 import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import { AuthorityConsole } from './components/AuthorityConsole';
 import { DemoSimulationModal } from './components/DemoSimulationModal';
+import { LoginModal } from './components/LoginModal';
+import { TRANSLATIONS, Language } from './utils/translations';
 
 import { 
   ShieldCheck, AlertTriangle, MapPinned, Route, Users, CloudRain, 
-  Play, Send, Loader2, WifiOff, RefreshCw, Layers, BarChart3, Bell, Eye, Menu, X
+  Play, Send, Loader2, WifiOff, RefreshCw, Layers, BarChart3, Bell, Eye, Menu, X, Globe, LogIn, LogOut, UserCheck
 } from 'lucide-react';
 import './style.css';
 
@@ -23,6 +25,9 @@ type ConnectionStatus = 'connecting' | 'connected' | 'demo-fallback';
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [role, setRole] = useState<'Resident' | 'Authority'>('Resident');
+  const [lang, setLang] = useState<Language>('en');
+  const [currentUser, setCurrentUser] = useState<{ name: string; role: 'Resident' | 'Authority'; email: string } | null>(null);
+  const [showLoginModal, setShowLoginModal] = useState<boolean>(false);
   const [zones, setZones] = useState<Zone[]>([]);
   const [summary, setSummary] = useState<RiskSummary | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -34,6 +39,8 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const [status, setStatus] = useState<ConnectionStatus>('connecting');
   const [notice, setNotice] = useState<string>('');
+
+  const t = (key: string): string => TRANSLATIONS[lang]?.[key] || TRANSLATIONS.en[key] || key;
 
   const loadData = useCallback(async () => {
     try {
@@ -52,7 +59,6 @@ function App() {
       setReports(rList);
       setStatus(isDemo ? 'demo-fallback' : 'connected');
     } catch {
-      // Automatic fallback data is populated inside apiService
       const [zList, sData, aList, rList] = await Promise.all([
         apiService.getZones(),
         apiService.getRiskSummary(),
@@ -73,7 +79,15 @@ function App() {
 
   const handleTabClick = (tab: Tab) => {
     setActiveTab(tab);
-    setSidebarOpen(false); // Close mobile drawer when tab selected
+    setSidebarOpen(false);
+  };
+
+  const handleLoginSuccess = (user: { name: string; role: 'Resident' | 'Authority'; email: string }) => {
+    setCurrentUser(user);
+    setRole(user.role);
+    if (user.role === 'Authority') {
+      setActiveTab('authority');
+    }
   };
 
   const handleFetchLocation = () => {
@@ -94,14 +108,14 @@ function App() {
     if (status === 'connected') return null;
     return (
       <div className="notice info-banner">
-        <span>⚡ DEMO MODE ACTIVE — Displaying verified North Eastern Region synthetic data dataset.</span>
+        <span>⚡ DEMO MODE ACTIVE — Displaying verified North Eastern Region synthetic dataset.</span>
       </div>
     );
   };
 
   return (
     <div className="shell">
-      {/* Top Mobile Bar with Three-Line Hamburger (☰) Button */}
+      {/* Top Mobile Bar with Hamburger ☰ */}
       <div className="mobile-header-bar">
         <button className="hamburger-btn" onClick={() => setSidebarOpen(!sidebarOpen)}>
           {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
@@ -124,30 +138,60 @@ function App() {
             <X size={20} />
           </button>
         </div>
-        <p className="tag">LANDSLIDE EARLY WARNING</p>
+        <p className="tag">{t('brand_sub')}</p>
+
+        {/* Language Switcher Dropdown */}
+        <div className="lang-switcher">
+          <Globe size={14} />
+          <select value={lang} onChange={e => setLang(e.target.value as Language)}>
+            <option value="en">English</option>
+            <option value="hi">हिंदी (Hindi)</option>
+            <option value="as">অসমীয়া (Assamese)</option>
+          </select>
+        </div>
+
+        {/* User Login Profile Box */}
+        {currentUser ? (
+          <div className="logged-user-card">
+            <div className="user-info">
+              <UserCheck size={16} className="user-icon" />
+              <div>
+                <strong>{currentUser.name}</strong>
+                <small>{currentUser.email}</small>
+              </div>
+            </div>
+            <button className="logout-btn" onClick={() => setCurrentUser(null)}>
+              <LogOut size={13} /> {t('logout')}
+            </button>
+          </div>
+        ) : (
+          <button className="portal-login-btn" onClick={() => setShowLoginModal(true)}>
+            <LogIn size={16} /> {t('login_portal')}
+          </button>
+        )}
 
         <nav className="nav-menu">
           <button className={activeTab === 'dashboard' ? 'active' : ''} onClick={() => handleTabClick('dashboard')}>
-            <MapPinned size={18} /> Dashboard
+            <MapPinned size={18} /> {t('dashboard')}
           </button>
           <button className={activeTab === 'map' ? 'active' : ''} onClick={() => handleTabClick('map')}>
-            <Layers size={18} /> Live Risk Map
+            <Layers size={18} /> {t('risk_map')}
           </button>
           <button className={activeTab === 'route' ? 'active' : ''} onClick={() => handleTabClick('route')}>
-            <Route size={18} /> Safe Route
+            <Route size={18} /> {t('safe_route')}
           </button>
           <button className={activeTab === 'report' ? 'active' : ''} onClick={() => handleTabClick('report')}>
-            <Send size={18} /> Report Hazard
+            <Send size={18} /> {t('report_hazard')}
           </button>
           <button className={activeTab === 'alerts' ? 'active' : ''} onClick={() => handleTabClick('alerts')}>
-            <Bell size={18} /> Alerts ({alerts.filter(a => a.status === 'ACTIVE').length})
+            <Bell size={18} /> {t('alerts')} ({alerts.filter(a => a.status === 'ACTIVE').length})
           </button>
           <button className={activeTab === 'analytics' ? 'active' : ''} onClick={() => handleTabClick('analytics')}>
-            <BarChart3 size={18} /> Analytics
+            <BarChart3 size={18} /> {t('analytics')}
           </button>
           {role === 'Authority' && (
             <button className={activeTab === 'authority' ? 'active' : ''} onClick={() => handleTabClick('authority')}>
-              <ShieldCheck size={18} /> Authority Console
+              <ShieldCheck size={18} /> {t('authority_console')}
             </button>
           )}
         </nav>
@@ -166,11 +210,16 @@ function App() {
         <header className="main-header">
           <div>
             <p className="eyebrow">SIH 2026 PROBLEM SIH26001 · NORTH EASTERN REGION</p>
-            <h1>Situational awareness, before the slope moves.</h1>
+            <h1>{t('slogan')}</h1>
           </div>
-          <button className="scenario-btn" onClick={() => setShowSimModal(true)}>
-            <Play size={16} /> Run Emergency Simulation
-          </button>
+          <div className="header-actions">
+            <button className="login-header-btn" onClick={() => setShowLoginModal(true)}>
+              <LogIn size={15} /> {currentUser ? currentUser.name.split(' ')[0] : t('login_portal')}
+            </button>
+            <button className="scenario-btn" onClick={() => setShowSimModal(true)}>
+              <Play size={16} /> {t('run_simulation')}
+            </button>
+          </div>
         </header>
 
         <ConnectionBanner />
@@ -185,7 +234,7 @@ function App() {
         {/* Hero Card */}
         <section className="hero">
           <div>
-            <p>REGIONAL RISK INDEX</p>
+            <p>{t('overall_risk')}</p>
             <strong className={`risk ${summary?.overall_level || 'LOW'}`}>
               {summary?.overall_level || 'LOW'} <small>{summary?.overall_score ?? 58}/100</small>
             </strong>
@@ -193,8 +242,8 @@ function App() {
           </div>
 
           <div className="quick-actions">
-            <button onClick={() => setActiveTab('route')}><Route size={16} /> Find Safe Route</button>
-            <button onClick={() => setActiveTab('report')}><Send size={16} /> Report Hazard</button>
+            <button onClick={() => setActiveTab('route')}><Route size={16} /> {t('find_safe_route')}</button>
+            <button onClick={() => setActiveTab('report')}><Send size={16} /> {t('report_hazard')}</button>
           </div>
         </section>
 
@@ -202,22 +251,22 @@ function App() {
         <section className="stats">
           <div className="stat-card">
             <MapPinned size={22} />
-            <small>Monitored Zones</small>
+            <small>{t('monitored_zones')}</small>
             <b>{summary?.total_zones ?? 5}</b>
           </div>
           <div className="stat-card">
             <AlertTriangle size={22} style={{ color: '#ef4444' }} />
-            <small>High Risk Zones</small>
+            <small>{t('high_risk_zones')}</small>
             <b>{summary?.high_risk_zones ?? 2}</b>
           </div>
           <div className="stat-card">
             <Users size={22} style={{ color: '#9333ea' }} />
-            <small>Active Reports</small>
+            <small>{t('active_reports')}</small>
             <b>{summary?.active_reports ?? 3}</b>
           </div>
           <div className="stat-card">
             <CloudRain size={22} style={{ color: '#3b82f6' }} />
-            <small>Active Alerts</small>
+            <small>{t('active_alerts')}</small>
             <b>{summary?.active_alerts ?? 2}</b>
           </div>
         </section>
@@ -228,7 +277,7 @@ function App() {
             <section className="grid-two">
               <div className="panel">
                 <div className="panelhead">
-                  <h2>Live Risk Map Overview</h2>
+                  <h2>{t('risk_map')}</h2>
                   <button className="text-link" onClick={() => setActiveTab('map')}>Expand Full Map →</button>
                 </div>
                 <RiskMap
@@ -241,6 +290,7 @@ function App() {
                   routeData={routeData}
                   userLocation={userLocation}
                   onFetchLocation={handleFetchLocation}
+                  lang={lang}
                 />
               </div>
 
@@ -251,7 +301,7 @@ function App() {
 
             <section className="bottom-dashboard-grid" style={{ marginTop: '20px' }}>
               <div className="panel">
-                <h2>Active Emergency Alerts ({alerts.filter(a => a.status === 'ACTIVE').length})</h2>
+                <h2>{t('alerts')} ({alerts.filter(a => a.status === 'ACTIVE').length})</h2>
                 {alerts.length === 0 ? (
                   <p className="muted-text">No active alerts recorded.</p>
                 ) : (
@@ -285,6 +335,7 @@ function App() {
               routeData={routeData}
               userLocation={userLocation}
               onFetchLocation={handleFetchLocation}
+              lang={lang}
             />
           </div>
         )}
@@ -312,7 +363,7 @@ function App() {
         {activeTab === 'alerts' && (
           <div className="tab-container">
             <div className="panel">
-              <h2>Active System & Community Emergency Alerts</h2>
+              <h2>{t('alerts')}</h2>
               {alerts.length === 0 ? (
                 <p className="muted-text">No active alerts recorded.</p>
               ) : (
@@ -371,6 +422,14 @@ function App() {
           <DemoSimulationModal
             onClose={() => setShowSimModal(false)}
             onSimulationComplete={loadData}
+          />
+        )}
+
+        {/* Login Modal */}
+        {showLoginModal && (
+          <LoginModal
+            onClose={() => setShowLoginModal(false)}
+            onLoginSuccess={handleLoginSuccess}
           />
         )}
 

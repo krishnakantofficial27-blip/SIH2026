@@ -120,7 +120,93 @@ aside.sidebar {
 }
 
 .tag {
-  margin: 6px 0 24px 0;
+  margin: 6px 0 16px 0;
+}
+
+/* Language Switcher */
+.lang-switcher {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #183a45;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  border: 1px solid #27525e;
+}
+
+.lang-switcher select {
+  background: transparent;
+  border: 0;
+  color: #59d0bd;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 12px;
+  width: 100%;
+  cursor: pointer;
+}
+
+.portal-login-btn {
+  width: 100%;
+  background: #1d4651;
+  border: 1px solid #59d0bd;
+  color: #59d0bd;
+  padding: 10px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  margin-bottom: 16px;
+  transition: all 0.2s ease;
+}
+
+.portal-login-btn:hover {
+  background: #59d0bd;
+  color: #102a35;
+}
+
+.logged-user-card {
+  background: #183a45;
+  border: 1px solid #059669;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 16px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #a7f3d0;
+  font-size: 12px;
+}
+
+.user-info strong {
+  display: block;
+  font-size: 12px;
+}
+
+.user-info small {
+  display: block;
+  color: #6ee7b7;
+  font-size: 10px;
+}
+
+.logout-btn {
+  margin-top: 6px;
+  background: transparent;
+  border: 0;
+  color: #f87171;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .nav-menu {
@@ -194,6 +280,25 @@ main {
   align-items: center;
 }
 
+.header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.login-header-btn {
+  background: #1e293b;
+  border: 1px solid #38bdf8;
+  color: #38bdf8;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
 h1,
 h2,
 h3 {
@@ -223,6 +328,30 @@ h1 {
 
 .scenario-btn:hover {
   opacity: 0.9;
+}
+
+/* ── Map Switcher Toolbar ── */
+.map-tile-switcher {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.style-btn {
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: #cbd5e1;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.style-btn.active {
+  background: #2563eb;
+  border-color: #3b82f6;
+  color: white;
 }
 
 /* ── Connection Banner ── */
@@ -390,6 +519,127 @@ h1 {
   cursor: pointer;
 }
 
+/* ── Login Modal ── */
+.login-modal-card {
+  background: #1e293b;
+  border: 1px solid #475569;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 480px;
+  padding: 28px;
+  color: #f8fafc;
+}
+
+.brand-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-icon {
+  color: #5dd1be;
+}
+
+.portal-tag {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  color: #5dd1be;
+}
+
+.role-tab-selector {
+  display: flex;
+  gap: 8px;
+  margin: 20px 0;
+}
+
+.role-tab {
+  flex: 1;
+  padding: 10px;
+  border-radius: 8px;
+  background: #0f172a;
+  border: 1px solid #334155;
+  color: #cbd5e1;
+  font-weight: 700;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.role-tab.active {
+  background: #1d4651;
+  border-color: #5dd1be;
+  color: white;
+}
+
+.login-form input {
+  width: 100%;
+  background: #0f172a;
+  border: 1px solid #334155;
+  color: white;
+  padding: 12px;
+  border-radius: 8px;
+  margin-top: 4px;
+}
+
+.quick-login-presets {
+  margin: 16px 0;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.preset-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.preset-buttons button {
+  background: #0f172a;
+  border: 1px solid #334155;
+  color: #38bdf8;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.login-submit-btn {
+  width: 100%;
+  background: #ef6b42;
+  color: white;
+  border: 0;
+  padding: 12px;
+  border-radius: 8px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.login-success-box {
+  text-align: center;
+  padding: 30px 0;
+  color: #34d399;
+}
+
+.login-footer-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+  font-size: 10px;
+  color: #64748b;
+  border-top: 1px solid #334155;
+  padding-top: 12px;
+}
+
 /* ── Alerts Cards ── */
 .alerts-full-list {
   display: flex;
@@ -450,6 +700,8 @@ h1 {
   padding: 10px 14px;
   border-radius: 8px;
   border: 1px solid #334155;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .layer-toggles {
@@ -490,7 +742,7 @@ h1 {
 }
 
 .leaflet-map-canvas {
-  height: 420px;
+  height: 440px;
   width: 100%;
   border-radius: 10px;
   border: 1px solid #334155;

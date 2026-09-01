@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Popup, Polyline, Marker } from 'react-leaflet';
-import L from 'leaflet';
+import { MapContainer, TileLayer, CircleMarker, Popup, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Zone, CommunityReport, MapLayerState, SafeRouteResponse } from '../types';
-import { Layers, MapPin, Eye, Route as RouteIcon, AlertTriangle } from 'lucide-react';
+import { Layers, MapPin, Eye, Globe } from 'lucide-react';
 
 interface RiskMapProps {
   zones: Zone[];
@@ -15,6 +14,7 @@ interface RiskMapProps {
   routeData?: SafeRouteResponse | null;
   userLocation?: { lat: number; lng: number } | null;
   onFetchLocation?: () => void;
+  lang?: 'en' | 'hi' | 'as';
 }
 
 const RISK_COLORS: Record<string, string> = {
@@ -24,12 +24,29 @@ const RISK_COLORS: Record<string, string> = {
   CRITICAL: '#ef4444',
 };
 
-// Historical Landslide Locations in NER
+const MAP_TILES = {
+  standard: {
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    name: '🗺️ Standard',
+  },
+  satellite: {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP',
+    name: '🛰️ Satellite',
+  },
+  terrain: {
+    url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+    attribution: 'Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap',
+    name: '🏔️ Terrain',
+  },
+};
+
 const HISTORICAL_LANDSLIDES = [
-  { id: 'HIST-1', name: 'Mawkdok Bridge Slide (2020)', lat: 25.35, lng: 91.75, year: 2020, severity: 'HIGH' },
-  { id: 'HIST-2', name: 'Noney Railway Disaster (2022)', lat: 24.81, lng: 93.63, year: 2022, severity: 'CRITICAL' },
-  { id: 'HIST-3', name: 'Lunglei Cliff Failure (2021)', lat: 22.88, lng: 92.73, year: 2021, severity: 'HIGH' },
-  { id: 'HIST-4', name: 'Pakyong Airport Highway Slide (2023)', lat: 27.23, lng: 88.58, year: 2023, severity: 'MODERATE' },
+  { id: 'HIST-1', name: 'Mawkdok Bridge Slide (2020)', lat: 25.35, lng: 91.75, year: 2020 },
+  { id: 'HIST-2', name: 'Noney Railway Disaster (2022)', lat: 24.81, lng: 93.63, year: 2022 },
+  { id: 'HIST-3', name: 'Lunglei Cliff Failure (2021)', lat: 22.88, lng: 92.73, year: 2021 },
+  { id: 'HIST-4', name: 'Pakyong Airport Highway Slide (2023)', lat: 27.23, lng: 88.58, year: 2023 },
 ];
 
 export const RiskMap: React.FC<RiskMapProps> = ({
@@ -37,12 +54,11 @@ export const RiskMap: React.FC<RiskMapProps> = ({
   reports,
   selectedZone,
   onSelectZone,
-  onOpenReportModal,
-  onNavigateToRoute,
   routeData,
   userLocation,
   onFetchLocation,
 }) => {
+  const [tileStyle, setTileStyle] = useState<'standard' | 'satellite' | 'terrain'>('standard');
   const [layers, setLayers] = useState<MapLayerState>({
     riskZones: true,
     communityReports: true,
@@ -63,6 +79,20 @@ export const RiskMap: React.FC<RiskMapProps> = ({
   return (
     <div className="risk-map-wrapper">
       <div className="map-toolbar">
+        {/* Map Base Tile Switcher (Satellite vs Standard vs Terrain) */}
+        <div className="map-tile-switcher">
+          <span className="toolbar-title"><Globe size={15} /> Map View:</span>
+          {(['standard', 'satellite', 'terrain'] as const).map(styleKey => (
+            <button
+              key={styleKey}
+              className={`style-btn ${tileStyle === styleKey ? 'active' : ''}`}
+              onClick={() => setTileStyle(styleKey)}
+            >
+              {MAP_TILES[styleKey].name}
+            </button>
+          ))}
+        </div>
+
         <div className="layer-toggles">
           <span className="toolbar-title"><Layers size={15} /> Layers:</span>
           <label className="toggle-btn">
@@ -79,7 +109,7 @@ export const RiskMap: React.FC<RiskMapProps> = ({
               checked={layers.communityReports}
               onChange={() => toggleLayer('communityReports')}
             />
-            Community Reports ({reports.length})
+            Reports ({reports.length})
           </label>
           <label className="toggle-btn">
             <input
@@ -87,7 +117,7 @@ export const RiskMap: React.FC<RiskMapProps> = ({
               checked={layers.historicalLandslides}
               onChange={() => toggleLayer('historicalLandslides')}
             />
-            Historical Incidents
+            Incidents
           </label>
           <label className="toggle-btn">
             <input
@@ -113,8 +143,9 @@ export const RiskMap: React.FC<RiskMapProps> = ({
         className="leaflet-map-canvas"
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          key={tileStyle}
+          attribution={MAP_TILES[tileStyle].attribution}
+          url={MAP_TILES[tileStyle].url}
         />
 
         {/* User Geolocation Marker */}
@@ -156,7 +187,7 @@ export const RiskMap: React.FC<RiskMapProps> = ({
                   </div>
                   <h3>{z.name}</h3>
                   <p><strong>24h Rainfall:</strong> {z.rainfall_24h} mm</p>
-                  <p><strong>Slope:</strong> {z.slope_deg}° | <strong>Moisture:</strong> {intPercent(z.soil_moisture)}%</p>
+                  <p><strong>Slope:</strong> {z.slope_deg}° | <strong>Moisture:</strong> {Math.round(z.soil_moisture * 100)}%</p>
                   <p className="popup-factors"><strong>Factors:</strong> {z.recommendation}</p>
                   <button className="popup-inspect-btn" onClick={() => onSelectZone(z)}>
                     <Eye size={13} /> View Full Zone Details
@@ -238,7 +269,3 @@ export const RiskMap: React.FC<RiskMapProps> = ({
     </div>
   );
 };
-
-function intPercent(val: number): number {
-  return Math.round(val * 100);
-}
