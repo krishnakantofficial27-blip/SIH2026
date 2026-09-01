@@ -11,15 +11,21 @@ import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import { AuthorityConsole } from './components/AuthorityConsole';
 import { DemoSimulationModal } from './components/DemoSimulationModal';
 import { LoginPage } from './components/LoginPage';
+import { MLPredictionPlayground } from './components/MLPredictionPlayground';
+import { SensorDashboard } from './components/SensorDashboard';
+import { WeatherForecast } from './components/WeatherForecast';
+import { EvacuationPlanner } from './components/EvacuationPlanner';
+import { HistoricalTimeline } from './components/HistoricalTimeline';
 import { TRANSLATIONS, Language } from './utils/translations';
 
 import { 
   ShieldCheck, AlertTriangle, MapPinned, Route, Users, CloudRain, 
-  Play, Send, Loader2, WifiOff, RefreshCw, Layers, BarChart3, Bell, Eye, Menu, X, Globe, LogIn, LogOut, UserCheck
+  Play, Send, Layers, BarChart3, Bell, Menu, X, Globe, LogIn, LogOut, UserCheck,
+  Brain, Activity, Siren, Calendar, CloudSun
 } from 'lucide-react';
 import './style.css';
 
-type Tab = 'dashboard' | 'map' | 'route' | 'report' | 'alerts' | 'analytics' | 'authority' | 'login';
+type Tab = 'dashboard' | 'map' | 'route' | 'report' | 'alerts' | 'analytics' | 'authority' | 'login' | 'ml' | 'sensors' | 'weather' | 'evacuation' | 'history';
 type ConnectionStatus = 'connecting' | 'connected' | 'demo-fallback';
 
 function App() {
@@ -78,7 +84,7 @@ function App() {
 
   const handleTabClick = (tab: Tab) => {
     setActiveTab(tab);
-    setSidebarOpen(false); // Close menu drawer on selection
+    setSidebarOpen(false);
   };
 
   const handleLoginSuccess = (user: { name: string; role: 'Resident' | 'Authority'; email: string }) => {
@@ -112,7 +118,7 @@ function App() {
 
   return (
     <div className="shell">
-      {/* Top Header Bar with Hamburger ☰ Button (Always Visible) */}
+      {/* Top Header Bar */}
       <header className="top-global-header">
         <div className="header-left">
           <button className="hamburger-btn" onClick={() => setSidebarOpen(!sidebarOpen)} title="Toggle Navigation Menu">
@@ -125,7 +131,6 @@ function App() {
         </div>
 
         <div className="header-right">
-          {/* Language Switcher */}
           <div className="lang-dropdown">
             <Globe size={15} />
             <select value={lang} onChange={e => setLang(e.target.value as Language)}>
@@ -135,7 +140,6 @@ function App() {
             </select>
           </div>
 
-          {/* User Profile / Dedicated Login Button */}
           {currentUser ? (
             <div className="user-profile-chip">
               <UserCheck size={16} />
@@ -156,10 +160,10 @@ function App() {
         </div>
       </header>
 
-      {/* Backdrop overlay when menu drawer is open */}
+      {/* Backdrop */}
       {sidebarOpen && <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)}></div>}
 
-      {/* Collapsible Sidebar Drawer (Hidden by default, slides out when ☰ clicked) */}
+      {/* Sidebar Drawer */}
       <aside className={`sidebar-drawer ${sidebarOpen ? 'open' : ''}`}>
         <div className="drawer-header">
           <div className="brand">
@@ -179,14 +183,34 @@ function App() {
         )}
 
         <nav className="nav-menu">
+          <div className="nav-section-label">MONITORING</div>
           <button className={activeTab === 'dashboard' ? 'active' : ''} onClick={() => handleTabClick('dashboard')}>
             <MapPinned size={18} /> {t('dashboard')}
           </button>
           <button className={activeTab === 'map' ? 'active' : ''} onClick={() => handleTabClick('map')}>
             <Layers size={18} /> {t('risk_map')}
           </button>
+          <button className={activeTab === 'sensors' ? 'active' : ''} onClick={() => handleTabClick('sensors')}>
+            <Activity size={18} /> IoT Sensors
+          </button>
+          <button className={activeTab === 'weather' ? 'active' : ''} onClick={() => handleTabClick('weather')}>
+            <CloudSun size={18} /> Weather Forecast
+          </button>
+
+          <div className="nav-section-label">AI & INTELLIGENCE</div>
+          <button className={activeTab === 'ml' ? 'active' : ''} onClick={() => handleTabClick('ml')}>
+            <Brain size={18} /> ML Prediction
+          </button>
+          <button className={activeTab === 'analytics' ? 'active' : ''} onClick={() => handleTabClick('analytics')}>
+            <BarChart3 size={18} /> {t('analytics')}
+          </button>
+
+          <div className="nav-section-label">ACTION & RESPONSE</div>
           <button className={activeTab === 'route' ? 'active' : ''} onClick={() => handleTabClick('route')}>
             <Route size={18} /> {t('safe_route')}
+          </button>
+          <button className={activeTab === 'evacuation' ? 'active' : ''} onClick={() => handleTabClick('evacuation')}>
+            <Siren size={18} /> Evacuation Plan
           </button>
           <button className={activeTab === 'report' ? 'active' : ''} onClick={() => handleTabClick('report')}>
             <Send size={18} /> {t('report_hazard')}
@@ -194,13 +218,19 @@ function App() {
           <button className={activeTab === 'alerts' ? 'active' : ''} onClick={() => handleTabClick('alerts')}>
             <Bell size={18} /> {t('alerts')} ({alerts.filter(a => a.status === 'ACTIVE').length})
           </button>
-          <button className={activeTab === 'analytics' ? 'active' : ''} onClick={() => handleTabClick('analytics')}>
-            <BarChart3 size={18} /> {t('analytics')}
+
+          <div className="nav-section-label">RESEARCH</div>
+          <button className={activeTab === 'history' ? 'active' : ''} onClick={() => handleTabClick('history')}>
+            <Calendar size={18} /> Historical Events
           </button>
+
           {role === 'Authority' && (
-            <button className={activeTab === 'authority' ? 'active' : ''} onClick={() => handleTabClick('authority')}>
-              <ShieldCheck size={18} /> {t('authority_console')}
-            </button>
+            <>
+              <div className="nav-section-label">ADMIN</div>
+              <button className={activeTab === 'authority' ? 'active' : ''} onClick={() => handleTabClick('authority')}>
+                <ShieldCheck size={18} /> {t('authority_console')}
+              </button>
+            </>
           )}
         </nav>
 
@@ -213,7 +243,7 @@ function App() {
         </div>
       </aside>
 
-      {/* Main Content Body */}
+      {/* Main Content */}
       <main className="main-content-full">
         <ConnectionBanner />
 
@@ -224,7 +254,6 @@ function App() {
           </div>
         )}
 
-        {/* Tab Views */}
         {activeTab === 'login' ? (
           <LoginPage
             onLoginSuccess={handleLoginSuccess}
@@ -232,7 +261,7 @@ function App() {
           />
         ) : (
           <>
-            {/* Sub-Header Slogan */}
+            {/* Sub-Header */}
             <div className="hero-subhead">
               <p className="eyebrow">SIH 2026 PROBLEM SIH26001 · NORTH EASTERN REGION</p>
               <h1>{t('slogan')}</h1>
@@ -247,7 +276,6 @@ function App() {
                 </strong>
                 <span>AI ML Prediction + Verified Ground Evidence Fusion</span>
               </div>
-
               <div className="quick-actions">
                 <button onClick={() => setActiveTab('route')}><Route size={16} /> {t('find_safe_route')}</button>
                 <button onClick={() => setActiveTab('report')}><Send size={16} /> {t('report_hazard')}</button>
@@ -278,7 +306,7 @@ function App() {
               </div>
             </section>
 
-            {/* View Switching */}
+            {/* Tab Views */}
             {activeTab === 'dashboard' && (
               <div className="tab-container">
                 <section className="grid-two">
@@ -288,25 +316,18 @@ function App() {
                       <button className="text-link" onClick={() => setActiveTab('map')}>Expand Full Map →</button>
                     </div>
                     <RiskMap
-                      zones={zones}
-                      reports={reports}
-                      selectedZone={selectedZone}
-                      onSelectZone={z => setSelectedZone(z)}
-                      onOpenReportModal={() => setActiveTab('report')}
-                      onNavigateToRoute={() => setActiveTab('route')}
-                      routeData={routeData}
-                      userLocation={userLocation}
-                      onFetchLocation={handleFetchLocation}
-                      lang={lang}
+                      zones={zones} reports={reports} selectedZone={selectedZone}
+                      onSelectZone={z => setSelectedZone(z)} onOpenReportModal={() => setActiveTab('report')}
+                      onNavigateToRoute={() => setActiveTab('route')} routeData={routeData}
+                      userLocation={userLocation} onFetchLocation={handleFetchLocation} lang={lang}
                     />
                   </div>
-
                   <div className="panel">
                     <ExplainabilityPanel />
                   </div>
                 </section>
 
-                <section className="bottom-dashboard-grid" style={{ marginTop: '20px' }}>
+                <section style={{ marginTop: '20px' }}>
                   <div className="panel">
                     <h2>{t('alerts')} ({alerts.filter(a => a.status === 'ACTIVE').length})</h2>
                     {alerts.length === 0 ? (
@@ -333,35 +354,51 @@ function App() {
             {activeTab === 'map' && (
               <div className="tab-container">
                 <RiskMap
-                  zones={zones}
-                  reports={reports}
-                  selectedZone={selectedZone}
-                  onSelectZone={z => setSelectedZone(z)}
-                  onOpenReportModal={() => setActiveTab('report')}
-                  onNavigateToRoute={() => setActiveTab('route')}
-                  routeData={routeData}
-                  userLocation={userLocation}
-                  onFetchLocation={handleFetchLocation}
-                  lang={lang}
+                  zones={zones} reports={reports} selectedZone={selectedZone}
+                  onSelectZone={z => setSelectedZone(z)} onOpenReportModal={() => setActiveTab('report')}
+                  onNavigateToRoute={() => setActiveTab('route')} routeData={routeData}
+                  userLocation={userLocation} onFetchLocation={handleFetchLocation} lang={lang}
                 />
+              </div>
+            )}
+
+            {activeTab === 'sensors' && (
+              <div className="tab-container">
+                <SensorDashboard />
+              </div>
+            )}
+
+            {activeTab === 'weather' && (
+              <div className="tab-container">
+                <WeatherForecast />
+              </div>
+            )}
+
+            {activeTab === 'ml' && (
+              <div className="tab-container">
+                <MLPredictionPlayground zones={zones} onPredictionComplete={loadData} />
               </div>
             )}
 
             {activeTab === 'route' && (
               <div className="tab-container">
                 <SafeRoutePlanner
-                  onRouteCalculated={r => setRouteData(r)}
-                  userLocation={userLocation}
+                  onRouteCalculated={r => setRouteData(r)} userLocation={userLocation}
                   onFetchLocation={handleFetchLocation}
                 />
+              </div>
+            )}
+
+            {activeTab === 'evacuation' && (
+              <div className="tab-container">
+                <EvacuationPlanner />
               </div>
             )}
 
             {activeTab === 'report' && (
               <div className="tab-container">
                 <HazardReporter
-                  onReportSubmitted={loadData}
-                  userLocation={userLocation}
+                  onReportSubmitted={loadData} userLocation={userLocation}
                   onFetchLocation={handleFetchLocation}
                 />
               </div>
@@ -397,36 +434,29 @@ function App() {
               </div>
             )}
 
+            {activeTab === 'history' && (
+              <div className="tab-container">
+                <HistoricalTimeline />
+              </div>
+            )}
+
             {activeTab === 'authority' && role === 'Authority' && (
               <div className="tab-container">
-                <AuthorityConsole
-                  zones={zones}
-                  reports={reports}
-                  alerts={alerts}
-                  onRefresh={loadData}
-                />
+                <AuthorityConsole zones={zones} reports={reports} alerts={alerts} onRefresh={loadData} />
               </div>
             )}
           </>
         )}
 
-        {/* Zone Inspection Modal */}
         {selectedZone && (
           <ZoneDetailModal
             zone={selectedZone}
             onClose={() => setSelectedZone(null)}
-            onNavigateToRoute={() => {
-              setSelectedZone(null);
-              setActiveTab('route');
-            }}
-            onNavigateToReport={() => {
-              setSelectedZone(null);
-              setActiveTab('report');
-            }}
+            onNavigateToRoute={() => { setSelectedZone(null); setActiveTab('route'); }}
+            onNavigateToReport={() => { setSelectedZone(null); setActiveTab('report'); }}
           />
         )}
 
-        {/* Demo Emergency Simulation Modal */}
         {showSimModal && (
           <DemoSimulationModal
             onClose={() => setShowSimModal(false)}
@@ -434,7 +464,6 @@ function App() {
           />
         )}
 
-        {/* Footer Disclaimer */}
         <footer>
           This system is a prototype decision-support tool. Predictions are estimates and should not replace official government warnings, geological assessments, or emergency instructions.
         </footer>
