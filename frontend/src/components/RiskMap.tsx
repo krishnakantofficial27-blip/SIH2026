@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Popup, Polyline } from 'react-leaflet';
+import React, { useState, useEffect } from 'react';
+import { MapContainer, TileLayer, CircleMarker, Popup, Polyline, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Zone, CommunityReport, MapLayerState, SafeRouteResponse } from '../types';
 import { Layers, MapPin, Eye, Globe } from 'lucide-react';
@@ -26,8 +26,8 @@ const RISK_COLORS: Record<string, string> = {
 
 const MAP_TILES = {
   standard: {
-    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
     name: '🗺️ Standard',
   },
   satellite: {
@@ -48,6 +48,16 @@ const HISTORICAL_LANDSLIDES = [
   { id: 'HIST-3', name: 'Lunglei Cliff Failure (2021)', lat: 22.88, lng: 92.73, year: 2021 },
   { id: 'HIST-4', name: 'Pakyong Airport Highway Slide (2023)', lat: 27.23, lng: 88.58, year: 2023 },
 ];
+
+const MapPanControl = ({ center }: { center: [number, number] | null }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (center) {
+      map.flyTo(center, 13);
+    }
+  }, [center, map]);
+  return null;
+};
 
 export const RiskMap: React.FC<RiskMapProps> = ({
   zones,
@@ -142,6 +152,7 @@ export const RiskMap: React.FC<RiskMapProps> = ({
         scrollWheelZoom={true}
         className="leaflet-map-canvas"
       >
+        <MapPanControl center={userLocation ? [userLocation.lat, userLocation.lng] : null} />
         <TileLayer
           key={tileStyle}
           attribution={MAP_TILES[tileStyle].attribution}
