@@ -10,7 +10,7 @@ import { ExplainabilityPanel } from './components/ExplainabilityPanel';
 import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import { AuthorityConsole } from './components/AuthorityConsole';
 import { DemoSimulationModal } from './components/DemoSimulationModal';
-import { LoginModal } from './components/LoginModal';
+import { LoginPage } from './components/LoginPage';
 import { TRANSLATIONS, Language } from './utils/translations';
 
 import { 
@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import './style.css';
 
-type Tab = 'dashboard' | 'map' | 'route' | 'report' | 'alerts' | 'analytics' | 'authority';
+type Tab = 'dashboard' | 'map' | 'route' | 'report' | 'alerts' | 'analytics' | 'authority' | 'login';
 type ConnectionStatus = 'connecting' | 'connected' | 'demo-fallback';
 
 function App() {
@@ -27,7 +27,6 @@ function App() {
   const [role, setRole] = useState<'Resident' | 'Authority'>('Resident');
   const [lang, setLang] = useState<Language>('en');
   const [currentUser, setCurrentUser] = useState<{ name: string; role: 'Resident' | 'Authority'; email: string } | null>(null);
-  const [showLoginModal, setShowLoginModal] = useState<boolean>(false);
   const [zones, setZones] = useState<Zone[]>([]);
   const [summary, setSummary] = useState<RiskSummary | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -79,15 +78,13 @@ function App() {
 
   const handleTabClick = (tab: Tab) => {
     setActiveTab(tab);
-    setSidebarOpen(false);
+    setSidebarOpen(false); // Close menu drawer on selection
   };
 
   const handleLoginSuccess = (user: { name: string; role: 'Resident' | 'Authority'; email: string }) => {
     setCurrentUser(user);
     setRole(user.role);
-    if (user.role === 'Authority') {
-      setActiveTab('authority');
-    }
+    setActiveTab(user.role === 'Authority' ? 'authority' : 'dashboard');
   };
 
   const handleFetchLocation = () => {
@@ -115,59 +112,70 @@ function App() {
 
   return (
     <div className="shell">
-      {/* Top Mobile Bar with Hamburger ☰ */}
-      <div className="mobile-header-bar">
-        <button className="hamburger-btn" onClick={() => setSidebarOpen(!sidebarOpen)}>
-          {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
-        <div className="mobile-brand">
-          <ShieldCheck size={22} /> SLOPE<span>SAFE</span>
+      {/* Top Header Bar with Hamburger ☰ Button (Always Visible) */}
+      <header className="top-global-header">
+        <div className="header-left">
+          <button className="hamburger-btn" onClick={() => setSidebarOpen(!sidebarOpen)} title="Toggle Navigation Menu">
+            {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+          <div className="global-brand" onClick={() => handleTabClick('dashboard')}>
+            <ShieldCheck size={26} className="brand-icon" />
+            <span>SLOPE<strong className="brand-highlight">SAFE</strong></span>
+          </div>
         </div>
-        <button className="mobile-scenario-btn" onClick={() => setShowSimModal(true)}>
-          <Play size={14} /> Simulation
-        </button>
-      </div>
 
-      {/* Sidebar Navigation */}
-      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
-        <div className="sidebar-header">
+        <div className="header-right">
+          {/* Language Switcher */}
+          <div className="lang-dropdown">
+            <Globe size={15} />
+            <select value={lang} onChange={e => setLang(e.target.value as Language)}>
+              <option value="en">English</option>
+              <option value="hi">हिंदी (Hindi)</option>
+              <option value="as">অসমীয়া (Assamese)</option>
+            </select>
+          </div>
+
+          {/* User Profile / Dedicated Login Button */}
+          {currentUser ? (
+            <div className="user-profile-chip">
+              <UserCheck size={16} />
+              <span>{currentUser.name.split(' ')[0]}</span>
+              <button className="chip-logout" onClick={() => setCurrentUser(null)} title="Logout">
+                <LogOut size={13} />
+              </button>
+            </div>
+          ) : (
+            <button className="header-login-btn" onClick={() => handleTabClick('login')}>
+              <LogIn size={15} /> {t('login_portal')}
+            </button>
+          )}
+
+          <button className="scenario-btn" onClick={() => setShowSimModal(true)}>
+            <Play size={15} /> {t('run_simulation')}
+          </button>
+        </div>
+      </header>
+
+      {/* Backdrop overlay when menu drawer is open */}
+      {sidebarOpen && <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)}></div>}
+
+      {/* Collapsible Sidebar Drawer (Hidden by default, slides out when ☰ clicked) */}
+      <aside className={`sidebar-drawer ${sidebarOpen ? 'open' : ''}`}>
+        <div className="drawer-header">
           <div className="brand">
             <ShieldCheck size={26} /> SLOPE<span>SAFE</span>
           </div>
-          <button className="close-sidebar-btn" onClick={() => setSidebarOpen(false)}>
-            <X size={20} />
+          <button className="close-drawer-btn" onClick={() => setSidebarOpen(false)}>
+            <X size={22} />
           </button>
         </div>
         <p className="tag">{t('brand_sub')}</p>
 
-        {/* Language Switcher Dropdown */}
-        <div className="lang-switcher">
-          <Globe size={14} />
-          <select value={lang} onChange={e => setLang(e.target.value as Language)}>
-            <option value="en">English</option>
-            <option value="hi">हिंदी (Hindi)</option>
-            <option value="as">অসমীয়া (Assamese)</option>
-          </select>
-        </div>
-
-        {/* User Login Profile Box */}
-        {currentUser ? (
-          <div className="logged-user-card">
-            <div className="user-info">
-              <UserCheck size={16} className="user-icon" />
-              <div>
-                <strong>{currentUser.name}</strong>
-                <small>{currentUser.email}</small>
-              </div>
-            </div>
-            <button className="logout-btn" onClick={() => setCurrentUser(null)}>
-              <LogOut size={13} /> {t('logout')}
-            </button>
+        {currentUser && (
+          <div className="drawer-user-info">
+            <small>Logged in as:</small>
+            <strong>{currentUser.name}</strong>
           </div>
-        ) : (
-          <button className="portal-login-btn" onClick={() => setShowLoginModal(true)}>
-            <LogIn size={16} /> {t('login_portal')}
-          </button>
         )}
 
         <nav className="nav-menu">
@@ -205,23 +213,8 @@ function App() {
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <main>
-        <header className="main-header">
-          <div>
-            <p className="eyebrow">SIH 2026 PROBLEM SIH26001 · NORTH EASTERN REGION</p>
-            <h1>{t('slogan')}</h1>
-          </div>
-          <div className="header-actions">
-            <button className="login-header-btn" onClick={() => setShowLoginModal(true)}>
-              <LogIn size={15} /> {currentUser ? currentUser.name.split(' ')[0] : t('login_portal')}
-            </button>
-            <button className="scenario-btn" onClick={() => setShowSimModal(true)}>
-              <Play size={16} /> {t('run_simulation')}
-            </button>
-          </div>
-        </header>
-
+      {/* Main Content Body */}
+      <main className="main-content-full">
         <ConnectionBanner />
 
         {notice && (
@@ -231,55 +224,114 @@ function App() {
           </div>
         )}
 
-        {/* Hero Card */}
-        <section className="hero">
-          <div>
-            <p>{t('overall_risk')}</p>
-            <strong className={`risk ${summary?.overall_level || 'LOW'}`}>
-              {summary?.overall_level || 'LOW'} <small>{summary?.overall_score ?? 58}/100</small>
-            </strong>
-            <span>AI ML Prediction + Verified Ground Evidence Fusion</span>
-          </div>
-
-          <div className="quick-actions">
-            <button onClick={() => setActiveTab('route')}><Route size={16} /> {t('find_safe_route')}</button>
-            <button onClick={() => setActiveTab('report')}><Send size={16} /> {t('report_hazard')}</button>
-          </div>
-        </section>
-
-        {/* Stats Grid */}
-        <section className="stats">
-          <div className="stat-card">
-            <MapPinned size={22} />
-            <small>{t('monitored_zones')}</small>
-            <b>{summary?.total_zones ?? 5}</b>
-          </div>
-          <div className="stat-card">
-            <AlertTriangle size={22} style={{ color: '#ef4444' }} />
-            <small>{t('high_risk_zones')}</small>
-            <b>{summary?.high_risk_zones ?? 2}</b>
-          </div>
-          <div className="stat-card">
-            <Users size={22} style={{ color: '#9333ea' }} />
-            <small>{t('active_reports')}</small>
-            <b>{summary?.active_reports ?? 3}</b>
-          </div>
-          <div className="stat-card">
-            <CloudRain size={22} style={{ color: '#3b82f6' }} />
-            <small>{t('active_alerts')}</small>
-            <b>{summary?.active_alerts ?? 2}</b>
-          </div>
-        </section>
-
         {/* Tab Views */}
-        {activeTab === 'dashboard' && (
-          <div className="tab-container">
-            <section className="grid-two">
-              <div className="panel">
-                <div className="panelhead">
-                  <h2>{t('risk_map')}</h2>
-                  <button className="text-link" onClick={() => setActiveTab('map')}>Expand Full Map →</button>
-                </div>
+        {activeTab === 'login' ? (
+          <LoginPage
+            onLoginSuccess={handleLoginSuccess}
+            onCancel={() => setActiveTab('dashboard')}
+          />
+        ) : (
+          <>
+            {/* Sub-Header Slogan */}
+            <div className="hero-subhead">
+              <p className="eyebrow">SIH 2026 PROBLEM SIH26001 · NORTH EASTERN REGION</p>
+              <h1>{t('slogan')}</h1>
+            </div>
+
+            {/* Hero Card */}
+            <section className="hero">
+              <div>
+                <p>{t('overall_risk')}</p>
+                <strong className={`risk ${summary?.overall_level || 'LOW'}`}>
+                  {summary?.overall_level || 'LOW'} <small>{summary?.overall_score ?? 58}/100</small>
+                </strong>
+                <span>AI ML Prediction + Verified Ground Evidence Fusion</span>
+              </div>
+
+              <div className="quick-actions">
+                <button onClick={() => setActiveTab('route')}><Route size={16} /> {t('find_safe_route')}</button>
+                <button onClick={() => setActiveTab('report')}><Send size={16} /> {t('report_hazard')}</button>
+              </div>
+            </section>
+
+            {/* Stats Grid */}
+            <section className="stats">
+              <div className="stat-card">
+                <MapPinned size={22} />
+                <small>{t('monitored_zones')}</small>
+                <b>{summary?.total_zones ?? 5}</b>
+              </div>
+              <div className="stat-card">
+                <AlertTriangle size={22} style={{ color: '#ef4444' }} />
+                <small>{t('high_risk_zones')}</small>
+                <b>{summary?.high_risk_zones ?? 2}</b>
+              </div>
+              <div className="stat-card">
+                <Users size={22} style={{ color: '#9333ea' }} />
+                <small>{t('active_reports')}</small>
+                <b>{summary?.active_reports ?? 3}</b>
+              </div>
+              <div className="stat-card">
+                <CloudRain size={22} style={{ color: '#3b82f6' }} />
+                <small>{t('active_alerts')}</small>
+                <b>{summary?.active_alerts ?? 2}</b>
+              </div>
+            </section>
+
+            {/* View Switching */}
+            {activeTab === 'dashboard' && (
+              <div className="tab-container">
+                <section className="grid-two">
+                  <div className="panel">
+                    <div className="panelhead">
+                      <h2>{t('risk_map')}</h2>
+                      <button className="text-link" onClick={() => setActiveTab('map')}>Expand Full Map →</button>
+                    </div>
+                    <RiskMap
+                      zones={zones}
+                      reports={reports}
+                      selectedZone={selectedZone}
+                      onSelectZone={z => setSelectedZone(z)}
+                      onOpenReportModal={() => setActiveTab('report')}
+                      onNavigateToRoute={() => setActiveTab('route')}
+                      routeData={routeData}
+                      userLocation={userLocation}
+                      onFetchLocation={handleFetchLocation}
+                      lang={lang}
+                    />
+                  </div>
+
+                  <div className="panel">
+                    <ExplainabilityPanel />
+                  </div>
+                </section>
+
+                <section className="bottom-dashboard-grid" style={{ marginTop: '20px' }}>
+                  <div className="panel">
+                    <h2>{t('alerts')} ({alerts.filter(a => a.status === 'ACTIVE').length})</h2>
+                    {alerts.length === 0 ? (
+                      <p className="muted-text">No active alerts recorded.</p>
+                    ) : (
+                      <div className="alerts-full-list">
+                        {alerts.map(a => (
+                          <div key={a.id} className={`alert-card-item ${a.severity.toLowerCase()}`}>
+                            <AlertTriangle size={20} />
+                            <div>
+                              <h3>{a.title}</h3>
+                              <p>{a.message}</p>
+                              <small>Zone: {a.zone_id} | Issued: {new Date(a.created_at).toLocaleString()}</small>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </section>
+              </div>
+            )}
+
+            {activeTab === 'map' && (
+              <div className="tab-container">
                 <RiskMap
                   zones={zones}
                   reports={reports}
@@ -293,112 +345,69 @@ function App() {
                   lang={lang}
                 />
               </div>
+            )}
 
-              <div className="panel">
-                <ExplainabilityPanel />
+            {activeTab === 'route' && (
+              <div className="tab-container">
+                <SafeRoutePlanner
+                  onRouteCalculated={r => setRouteData(r)}
+                  userLocation={userLocation}
+                  onFetchLocation={handleFetchLocation}
+                />
               </div>
-            </section>
+            )}
 
-            <section className="bottom-dashboard-grid" style={{ marginTop: '20px' }}>
-              <div className="panel">
-                <h2>{t('alerts')} ({alerts.filter(a => a.status === 'ACTIVE').length})</h2>
-                {alerts.length === 0 ? (
-                  <p className="muted-text">No active alerts recorded.</p>
-                ) : (
-                  <div className="alerts-full-list">
-                    {alerts.map(a => (
-                      <div key={a.id} className={`alert-card-item ${a.severity.toLowerCase()}`}>
-                        <AlertTriangle size={20} />
-                        <div>
-                          <h3>{a.title}</h3>
-                          <p>{a.message}</p>
-                          <small>Zone: {a.zone_id} | Issued: {new Date(a.created_at).toLocaleString()}</small>
+            {activeTab === 'report' && (
+              <div className="tab-container">
+                <HazardReporter
+                  onReportSubmitted={loadData}
+                  userLocation={userLocation}
+                  onFetchLocation={handleFetchLocation}
+                />
+              </div>
+            )}
+
+            {activeTab === 'alerts' && (
+              <div className="tab-container">
+                <div className="panel">
+                  <h2>{t('alerts')}</h2>
+                  {alerts.length === 0 ? (
+                    <p className="muted-text">No active alerts recorded.</p>
+                  ) : (
+                    <div className="alerts-full-list">
+                      {alerts.map(a => (
+                        <div key={a.id} className={`alert-card-item ${a.severity.toLowerCase()}`}>
+                          <AlertTriangle size={24} />
+                          <div>
+                            <h3>{a.title}</h3>
+                            <p>{a.message}</p>
+                            <small>Zone: {a.zone_id} | Issued: {new Date(a.created_at).toLocaleString()}</small>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </section>
-          </div>
-        )}
-
-        {activeTab === 'map' && (
-          <div className="tab-container">
-            <RiskMap
-              zones={zones}
-              reports={reports}
-              selectedZone={selectedZone}
-              onSelectZone={z => setSelectedZone(z)}
-              onOpenReportModal={() => setActiveTab('report')}
-              onNavigateToRoute={() => setActiveTab('route')}
-              routeData={routeData}
-              userLocation={userLocation}
-              onFetchLocation={handleFetchLocation}
-              lang={lang}
-            />
-          </div>
-        )}
-
-        {activeTab === 'route' && (
-          <div className="tab-container">
-            <SafeRoutePlanner
-              onRouteCalculated={r => setRouteData(r)}
-              userLocation={userLocation}
-              onFetchLocation={handleFetchLocation}
-            />
-          </div>
-        )}
-
-        {activeTab === 'report' && (
-          <div className="tab-container">
-            <HazardReporter
-              onReportSubmitted={loadData}
-              userLocation={userLocation}
-              onFetchLocation={handleFetchLocation}
-            />
-          </div>
-        )}
-
-        {activeTab === 'alerts' && (
-          <div className="tab-container">
-            <div className="panel">
-              <h2>{t('alerts')}</h2>
-              {alerts.length === 0 ? (
-                <p className="muted-text">No active alerts recorded.</p>
-              ) : (
-                <div className="alerts-full-list">
-                  {alerts.map(a => (
-                    <div key={a.id} className={`alert-card-item ${a.severity.toLowerCase()}`}>
-                      <AlertTriangle size={24} />
-                      <div>
-                        <h3>{a.title}</h3>
-                        <p>{a.message}</p>
-                        <small>Zone: {a.zone_id} | Issued: {new Date(a.created_at).toLocaleString()}</small>
-                      </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
-              )}
-            </div>
-          </div>
-        )}
+              </div>
+            )}
 
-        {activeTab === 'analytics' && (
-          <div className="tab-container">
-            <AnalyticsDashboard />
-          </div>
-        )}
+            {activeTab === 'analytics' && (
+              <div className="tab-container">
+                <AnalyticsDashboard />
+              </div>
+            )}
 
-        {activeTab === 'authority' && role === 'Authority' && (
-          <div className="tab-container">
-            <AuthorityConsole
-              zones={zones}
-              reports={reports}
-              alerts={alerts}
-              onRefresh={loadData}
-            />
-          </div>
+            {activeTab === 'authority' && role === 'Authority' && (
+              <div className="tab-container">
+                <AuthorityConsole
+                  zones={zones}
+                  reports={reports}
+                  alerts={alerts}
+                  onRefresh={loadData}
+                />
+              </div>
+            )}
+          </>
         )}
 
         {/* Zone Inspection Modal */}
@@ -422,14 +431,6 @@ function App() {
           <DemoSimulationModal
             onClose={() => setShowSimModal(false)}
             onSimulationComplete={loadData}
-          />
-        )}
-
-        {/* Login Modal */}
-        {showLoginModal && (
-          <LoginModal
-            onClose={() => setShowLoginModal(false)}
-            onLoginSuccess={handleLoginSuccess}
           />
         )}
 
