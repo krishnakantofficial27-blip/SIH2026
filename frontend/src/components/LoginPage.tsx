@@ -38,7 +38,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onCancel }
       setEmail('officer.ndma@sih2026.gov.in');
       setPassword('sih2026password');
     } else {
-      setEmail('resident.aizawl@gmail.com');
+      setEmail('citizen.alert@slopesafe.gov.in');
       setPassword('resident123');
     }
   };
@@ -55,7 +55,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onCancel }
             </div>
           </div>
           <p className="login-subtitle">
-            Secure multi-role authentication for North Eastern Region Disaster Management Officers, Field Inspectors, and Local Residents.
+            Secure multi-role authentication for National & State Disaster Management Officers, Field Inspectors, and Citizens.
           </p>
         </div>
 

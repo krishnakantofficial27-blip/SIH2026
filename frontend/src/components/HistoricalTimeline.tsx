@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, MapPin, AlertTriangle, ChevronDown, ChevronUp, Clock, Skull } from 'lucide-react';
+import { Calendar, MapPin, AlertTriangle, ChevronDown, ChevronUp, Clock, Skull, Info, History } from 'lucide-react';
 
 interface HistoricalEvent {
   id: number;
@@ -7,6 +7,7 @@ interface HistoricalEvent {
   year: number;
   title: string;
   location: string;
+  district: string;
   state: string;
   lat: number;
   lng: number;
@@ -18,55 +19,71 @@ interface HistoricalEvent {
   source: string;
 }
 
-const HISTORICAL_EVENTS: HistoricalEvent[] = [
+const NATIONAL_HISTORICAL_EVENTS: HistoricalEvent[] = [
   {
-    id: 1, date: '2023-07-12', year: 2023, title: 'Mizoram Highway Landslide', location: 'Aizawl-Silchar Highway, NH-306', state: 'Mizoram',
-    lat: 23.73, lng: 92.72, casualties: 14, displaced: 380, cause: 'Heavy monsoon rainfall (120mm in 6h) + deforested hillside',
-    description: 'Massive debris flow buried 200m section of National Highway near Kolasib. Multiple vehicles trapped under soil and boulders.',
-    severity: 'major', source: 'NDMA Situation Report 2023-07-12'
+    id: 10, date: '2024-07-30', year: 2024, title: 'Wayanad Chooralmala & Mundakkai Catastrophic Debris Surge', 
+    location: 'Meppadi / Chooralmala, Wayanad', district: 'Wayanad', state: 'Kerala',
+    lat: 11.53, lng: 76.13, casualties: 420, displaced: 4500, 
+    cause: 'Orographic monsoon deluge (572mm in 48h) triggered mass soil liquefaction on 39° escarpment',
+    description: 'Catastrophic double debris flow surged at 2:00 AM and 4:10 AM, completely pulverizing the villages of Chooralmala, Mundakkai, and Attamala, destroying the primary bridge and reshaping the river valley.',
+    severity: 'catastrophic', source: 'Kerala SDMA & Geological Survey of India (GSI) National Report 2024'
   },
   {
-    id: 2, date: '2022-06-29', year: 2022, title: 'Manipur Railway Construction Slide', location: 'Imphal-Jiribam Rail Corridor', state: 'Manipur',
-    lat: 24.82, lng: 93.94, casualties: 8, displaced: 200, cause: 'Slope excavation destabilization + saturated clay substratum',
-    description: 'A retaining wall collapsed during railway tunnel construction, triggering a secondary debris slide covering 3 hectares.',
-    severity: 'major', source: 'GSI Technical Report 2022'
+    id: 11, date: '2014-07-30', year: 2014, title: 'Malin Ambegaon Village Mudflow Catastrophe', 
+    location: 'Malin, Ambegaon Taluka, Pune', district: 'Pune', state: 'Maharashtra',
+    lat: 19.16, lng: 73.68, casualties: 151, displaced: 320, 
+    cause: 'Heavy monsoon downpour on deforested hill slope with flattened paddy terraces',
+    description: 'Entire hillside broke loose during the early morning hours, burying 44 houses and the village school under meters of mud and basalt debris in under 3 minutes.',
+    severity: 'catastrophic', source: 'NDRF 5th Battalion & National Institute of Disaster Management (NIDM)'
   },
   {
-    id: 3, date: '2021-10-28', year: 2021, title: 'Shillong Plateau Slope Failure', location: 'Laitkor Peak, Upper Shillong', state: 'Meghalaya',
-    lat: 25.58, lng: 91.89, casualties: 5, displaced: 150, cause: '72h continuous rainfall (210mm) + steep gradient (38°)',
-    description: 'Shallow translational slide destroyed 12 residential structures on the eastern face of Laitkor Peak.',
-    severity: 'major', source: 'NEIST Seismological Centre Report'
+    id: 12, date: '2013-06-16', year: 2013, title: 'Kedarnath-Mandakini High Himalayan Valley Debris Floods', 
+    location: 'Kedarnath Temple Valley, Rudraprayag', district: 'Rudraprayag', state: 'Uttarakhand',
+    lat: 30.73, lng: 79.06, casualties: 5700, displaced: 12000, 
+    cause: 'Chorabari glacial lake outburst flood (GLOF) + multi-day extreme downpour over moraines',
+    description: 'Cataclysmic flash surge and concurrent moraine landslides obliterated the Kedarnath temple township, washing out roads, bridges, and settlements throughout the entire Mandakini basin.',
+    severity: 'catastrophic', source: 'Wadia Institute of Himalayan Geology & NDMA Special Commission'
   },
   {
-    id: 4, date: '2020-08-14', year: 2020, title: 'Sikkim Flash Flood + Landslide', location: 'Teesta River Valley, NH-10', state: 'Sikkim',
-    lat: 27.33, lng: 88.61, casualties: 22, displaced: 1200, cause: 'Cloud burst + glacial lake outburst flood + seismic precursor',
-    description: 'Catastrophic compound event: flash flooding triggered multiple sequential landslides along 15km of highway corridor.',
-    severity: 'catastrophic', source: 'IMD & CWC Flood Bulletin 2020'
+    id: 1, date: '2023-08-14', year: 2023, title: 'Shimla Summer Hill Shiv Temple Debris Avalanche', 
+    location: 'Summer Hill, Shimla Town', district: 'Shimla', state: 'Himachal Pradesh',
+    lat: 31.11, lng: 77.14, casualties: 21, displaced: 450, 
+    cause: 'Extreme rainfall surge (140mm in 12h) + saturated clay overburden on 34° slope',
+    description: 'Massive slope liquefaction sheared downhill from Summer Hill, demolishing the historic temple structure and washing through residential slope terraces.',
+    severity: 'catastrophic', source: 'HP-SDMA & GSI Investigation Report 2023'
   },
   {
-    id: 5, date: '2019-08-05', year: 2019, title: 'Nagaland Highway Block', location: 'Kohima-Imphal Highway, NH-39', state: 'Nagaland',
-    lat: 25.67, lng: 94.11, casualties: 3, displaced: 85, cause: 'Prolonged 5-day rainfall + road cut instability',
-    description: 'Rotational slide blocked NH-39 for 72 hours. Army engineers deployed for emergency clearance.',
-    severity: 'minor', source: 'Border Roads Organisation Report'
+    id: 2, date: '2023-08-13', year: 2023, title: 'Mandi-Pandoh NH-21 Multi-Slope Collapse', 
+    location: 'Pandoh Gorge Sector, NH-21', district: 'Mandi', state: 'Himachal Pradesh',
+    lat: 31.67, lng: 77.05, casualties: 18, displaced: 600, 
+    cause: '72h cumulative monsoon precipitation (280mm) + Beas River toe-cutting',
+    description: 'Catastrophic hillside breach completely severed NH-21 between Mandi and Aut, stranding hundreds of vehicles and destroying hillside settlements.',
+    severity: 'catastrophic', source: 'NDMA Situation Report & BRO Bulletin 2023'
   },
   {
-    id: 6, date: '2017-09-18', year: 2017, title: 'Meghalaya Coal Mine Collapse + Slide', location: 'East Jaintia Hills', state: 'Meghalaya',
-    lat: 25.42, lng: 92.38, casualties: 17, displaced: 450, cause: 'Illegal rat-hole mining + monsoon saturation + subsurface voids',
-    description: 'Underground void collapse triggered surface subsidence and landslide. Rescue operations lasted 12 days.',
-    severity: 'catastrophic', source: 'NGT Environmental Report 2017'
+    id: 4, date: '2021-08-11', year: 2021, title: 'Kinnaur Nigulsari Massive Highway Rockslide', 
+    location: 'Nigulsari, NH-5 Hindustan-Tibet Road', district: 'Kinnaur', state: 'Himachal Pradesh',
+    lat: 31.52, lng: 78.02, casualties: 28, displaced: 100, 
+    cause: 'Sudden wedge failure in jointed granitic gneiss cliff on 44° slope',
+    description: 'Large rock mass detached from near-vertical ridge above NH-5, burying an HRTC passenger bus and several vehicles under hundreds of tons of granite debris.',
+    severity: 'catastrophic', source: 'NDRF 7th Battalion & GSI Technical Review'
   },
   {
-    id: 7, date: '2016-01-04', year: 2016, title: 'Manipur Earthquake-Triggered Landslides', location: 'Tamenglong District', state: 'Manipur',
-    lat: 25.08, lng: 93.52, casualties: 9, displaced: 300, cause: 'M6.7 earthquake + weakened slope stability + aftershock sequence',
-    description: 'Earthquake (M6.7, depth 55km) triggered 30+ landslides across Tamenglong. Critical infrastructure severely damaged.',
-    severity: 'catastrophic', source: 'USGS & IMD Seismological Bulletin'
+    id: 13, date: '2015-07-01', year: 2015, title: 'Mirik-Darjeeling Multi-Slope Tea Garden Disasters', 
+    location: 'Mirik, Tindharia & Kalimpong Slopes', district: 'Darjeeling', state: 'West Bengal',
+    lat: 26.90, lng: 88.28, casualties: 40, displaced: 850, 
+    cause: 'Heavy cloudburst (280mm in 6h) on saturated weathered phyllite terrain',
+    description: 'Multiple simultaneous translational slips severed NH-55, damaged tea plantations, and destroyed homes across the Mirik Valley and Kurseong.',
+    severity: 'catastrophic', source: 'West Bengal Disaster Management Department & GSI Eastern Region'
   },
   {
-    id: 8, date: '2024-08-22', year: 2024, title: 'Assam Flood-Linked Slope Failures', location: 'Haflong-Badarpur Rail Section', state: 'Assam',
-    lat: 25.17, lng: 93.02, casualties: 6, displaced: 520, cause: 'Brahmaputra flood + sustained 96h rainfall (280mm)',
-    description: 'Rail embankment failure and 4 concurrent hillside slides disrupted Northeast rail connectivity for 2 weeks.',
-    severity: 'major', source: 'Northeast Frontier Railway Bulletin 2024'
-  },
+    id: 14, date: '2020-08-06', year: 2020, title: 'Pettimudi Munnar Plantation Colluvial Slide', 
+    location: 'Pettimudi, Rajamala, Idukki', district: 'Idukki', state: 'Kerala',
+    lat: 10.08, lng: 77.06, casualties: 66, displaced: 200, 
+    cause: 'Heavy monsoon downpour triggering rotational slope failure on steep tea garden hills',
+    description: 'Huge mass of mud, rock, and water slid 1.5km down the hill, completely burying tea estate worker settlements under 15-20 feet of debris.',
+    severity: 'catastrophic', source: 'Kerala Forest Dept & Revenue Department Assessment'
+  }
 ];
 
 const getSeverityColor = (s: string) => {
@@ -75,89 +92,85 @@ const getSeverityColor = (s: string) => {
 };
 
 export const HistoricalTimeline: React.FC = () => {
-  const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [filterState, setFilterState] = useState<string>('ALL');
+  const [expandedId, setExpandedId] = useState<number | null>(10);
+  const [stateFilter, setStateFilter] = useState<string>('ALL');
+  const [severityFilter, setSeverityFilter] = useState<string>('ALL');
 
-  const states = ['ALL', ...Array.from(new Set(HISTORICAL_EVENTS.map(e => e.state)))];
-  const filtered = filterState === 'ALL' ? HISTORICAL_EVENTS : HISTORICAL_EVENTS.filter(e => e.state === filterState);
-  const totalCasualties = filtered.reduce((s, e) => s + e.casualties, 0);
-  const totalDisplaced = filtered.reduce((s, e) => s + e.displaced, 0);
+  const states = ['ALL', ...Array.from(new Set(NATIONAL_HISTORICAL_EVENTS.map(e => e.state)))];
+
+  const filteredEvents = NATIONAL_HISTORICAL_EVENTS.filter(e => {
+    if (stateFilter !== 'ALL' && e.state !== stateFilter) return false;
+    if (severityFilter !== 'ALL' && e.severity !== severityFilter) return false;
+    return true;
+  });
+
+  const totalCasualties = NATIONAL_HISTORICAL_EVENTS.reduce((sum, e) => sum + e.casualties, 0);
 
   return (
-    <div className="historical-timeline">
+    <div className="historical-timeline-container">
+      {/* Header */}
       <div className="timeline-header">
-        <Calendar size={24} className="brand-icon" />
+        <History size={28} className="header-icon" />
         <div>
-          <h2>Historical Landslide Events — North East India</h2>
-          <p>Documented major landslide events from NDMA, GSI, and IMD archives for risk pattern analysis</p>
+          <h2>Historical Landslide Disasters Archive — National Catalog</h2>
+          <p>Documented major slope failure disasters from GSI, NDMA, and State SDMA archives</p>
         </div>
       </div>
 
-      {/* Summary KPIs */}
-      <div className="timeline-kpi-row">
-        <div className="timeline-kpi">
-          <span className="kpi-val">{filtered.length}</span>
-          <small>Documented Events</small>
-        </div>
-        <div className="timeline-kpi">
-          <span className="kpi-val" style={{ color: '#ef4444' }}>{totalCasualties}</span>
-          <small>Total Casualties</small>
-        </div>
-        <div className="timeline-kpi">
-          <span className="kpi-val" style={{ color: '#f97316' }}>{totalDisplaced.toLocaleString()}</span>
-          <small>People Displaced</small>
-        </div>
-        <div className="timeline-kpi">
-          <span className="kpi-val">{filtered.filter(e => e.severity === 'catastrophic').length}</span>
-          <small>Catastrophic Events</small>
-        </div>
-      </div>
-
-      {/* State Filter */}
+      {/* State / Region Filter Row */}
       <div className="state-filter-row">
         {states.map(s => (
-          <button key={s} className={`state-chip ${filterState === s ? 'active' : ''}`} onClick={() => setFilterState(s)}>
-            {s === 'ALL' ? '🗺️ All States' : `📍 ${s}`}
+          <button 
+            key={s} 
+            className={`state-chip ${stateFilter === s ? 'active' : ''}`} 
+            onClick={() => setStateFilter(s)}
+          >
+            {s === 'ALL' ? '🇮🇳 All Regions' : `📍 ${s}`}
           </button>
         ))}
       </div>
 
-      {/* Timeline */}
+      {/* Timeline List */}
       <div className="timeline-list">
-        {filtered.map(e => {
+        {filteredEvents.map(e => {
           const isOpen = expandedId === e.id;
           return (
             <div key={e.id} className={`timeline-event ${e.severity}`} onClick={() => setExpandedId(isOpen ? null : e.id)}>
-              <div className="timeline-line-dot" style={{ background: getSeverityColor(e.severity) }}></div>
+              <div className="timeline-line-dot" style={{ background: getSeverityColor(e.severity) }} />
               <div className="timeline-event-body">
                 <div className="event-header-row">
                   <div>
                     <span className="event-date"><Clock size={12} /> {e.date}</span>
                     <h3>{e.title}</h3>
-                    <span className="event-location"><MapPin size={12} /> {e.location}, {e.state}</span>
+                    <span className="event-location"><MapPin size={12} /> {e.location} · {e.district} ({e.state})</span>
                   </div>
                   <div className="event-badges">
-                    <span className="severity-badge" style={{ background: getSeverityColor(e.severity) }}>{e.severity.toUpperCase()}</span>
-                    {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    <span className="severity-badge" style={{ background: getSeverityColor(e.severity) }}>
+                      {e.severity.toUpperCase()}
+                    </span>
+                    {isOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                   </div>
                 </div>
 
                 <div className="event-quick-stats">
-                  <span><Skull size={12} /> {e.casualties} casualties</span>
-                  <span>👥 {e.displaced} displaced</span>
+                  <span><Skull size={13} /> {e.casualties} casualties</span>
+                  <span>👥 {e.displaced.toLocaleString()} displaced</span>
+                  <span>📍 Coords: {e.lat.toFixed(2)}°N, {e.lng.toFixed(2)}°E</span>
                 </div>
 
                 {isOpen && (
-                  <div className="event-expanded">
-                    <div className="event-cause">
-                      <strong>Root Cause:</strong> {e.cause}
+                  <div className="event-expanded-details">
+                    <div className="detail-field">
+                      <strong>Geotechnical Cause:</strong>
+                      <p>{e.cause}</p>
                     </div>
-                    <p className="event-desc">{e.description}</p>
-                    <div className="event-source">
-                      📄 Source: {e.source}
+                    <div className="detail-field">
+                      <strong>Incident Description:</strong>
+                      <p>{e.description}</p>
                     </div>
-                    <div className="event-coords">
-                      📍 Coordinates: {e.lat}°N, {e.lng}°E
+                    <div className="detail-field">
+                      <strong>Official Documentation Source:</strong>
+                      <small>{e.source}</small>
                     </div>
                   </div>
                 )}
@@ -165,10 +178,6 @@ export const HistoricalTimeline: React.FC = () => {
             </div>
           );
         })}
-      </div>
-
-      <div className="timeline-footer">
-        <span>📚 Data compiled from NDMA, GSI (Geological Survey of India), IMD, and published research. Coordinates approximate for visualization purposes.</span>
       </div>
     </div>
   );

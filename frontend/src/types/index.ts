@@ -1,8 +1,18 @@
 export type RiskLevel = 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL';
 
+export interface FactorContribution {
+  factor: string;
+  weight_percent: number;
+  level: RiskLevel;
+  value_display: string;
+  explanation: string;
+}
+
 export interface Zone {
   id: string;
   name: string;
+  district: string;
+  state: string;
   lat: number;
   lng: number;
   risk_score: number;
@@ -10,6 +20,7 @@ export interface Zone {
   rainfall_1h: number;
   rainfall_24h: number;
   rainfall_72h: number;
+  rainfall_7d?: number;
   slope_deg: number;
   soil_moisture: number;
   elevation: number;
@@ -19,24 +30,47 @@ export interface Zone {
   community_reports_count: number;
   ml_score: number;
   community_adjustment: number;
+  confidence?: number;
   recommendation: string;
+  action_advice?: string;
+  factors_breakdown?: FactorContribution[];
   data_source: string;
+  data_status?: 'LIVE' | 'ESTIMATED' | 'SIMULATION';
   updated_at: string;
 }
 
-export type ReportType = 'CRACK' | 'WATER_SEEPAGE' | 'SLOPE_MOVEMENT' | 'FALLING_DEBRIS' | 'OTHER';
+export type ReportType = 
+  | 'CRACK' 
+  | 'WATER_SEEPAGE' 
+  | 'SLOPE_MOVEMENT' 
+  | 'FALLING_DEBRIS' 
+  | 'ROAD_BLOCKAGE' 
+  | 'OTHER';
+
 export type Severity = 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL';
-export type ReportStatus = 'PENDING' | 'VERIFIED' | 'REJECTED';
+
+export type ReportStatus = 
+  | 'SUBMITTED' 
+  | 'UNDER_REVIEW' 
+  | 'VERIFIED' 
+  | 'ACTION_REQUIRED' 
+  | 'RESOLVED' 
+  | 'REJECTED'
+  | 'PENDING'; // Backwards-compatible alias
 
 export interface CommunityReport {
   id: number;
+  report_code?: string;
   report_type: ReportType;
   description: string;
   severity: Severity;
   latitude: number;
   longitude: number;
+  district?: string;
   photo_url?: string | null;
   status: ReportStatus;
+  authority_notes?: string;
+  assigned_team?: string;
   created_at: string;
   updated_at: string;
 }
@@ -44,10 +78,14 @@ export interface CommunityReport {
 export interface Alert {
   id: number;
   zone_id: string;
+  district?: string;
   title: string;
   message: string;
   severity: Severity;
   status: 'ACTIVE' | 'ACKNOWLEDGED' | 'RESOLVED';
+  action_advice?: string;
+  source?: string;
+  acknowledged_at?: string;
   created_at: string;
 }
 
@@ -83,6 +121,7 @@ export interface RiskSummary {
   verified_reports: number;
   active_alerts: number;
   demo_mode: boolean;
+  monitored_region: string;
 }
 
 export interface RiskTrend {
@@ -103,4 +142,19 @@ export interface MapLayerState {
   communityReports: boolean;
   historicalLandslides: boolean;
   safeRoute: boolean;
+  rainfallRadar?: boolean;
+}
+
+export interface EmergencyResource {
+  id: string;
+  name: string;
+  category: 'hospital' | 'sdrf' | 'police' | 'fire' | 'helpline' | 'shelter';
+  district: string;
+  address: string;
+  phone: string;
+  lat: number;
+  lng: number;
+  is24x7: boolean;
+  capacity?: number;
+  current_occupancy?: number;
 }

@@ -38,7 +38,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, onLoginSuccess 
       setEmail('officer.ndma@sih2026.gov.in');
       setPassword('sih2026password');
     } else {
-      setEmail('resident.aizawl@gmail.com');
+      setEmail('citizen.alert@slopesafe.gov.in');
       setPassword('resident123');
     }
   };
@@ -124,7 +124,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, onLoginSuccess 
 
         <div className="login-footer-notice">
           <Key size={13} />
-          <span>Secured 256-bit encrypted authentication for Disaster Management Officials & North Eastern Region Residents.</span>
+          <span>Secured 256-bit encrypted authentication for Disaster Management Officials & Citizens Pan-India.</span>
         </div>
       </div>
     </div>

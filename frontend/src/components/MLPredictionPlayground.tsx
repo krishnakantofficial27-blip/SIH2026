@@ -19,7 +19,7 @@ interface PredictionResult {
 }
 
 export const MLPredictionPlayground: React.FC<MLPredictionPlaygroundProps> = ({ zones, onPredictionComplete }) => {
-  const [selectedZone, setSelectedZone] = useState<string>(zones[0]?.id || 'NER-001');
+  const [selectedZone, setSelectedZone] = useState<string>(zones[0]?.id || 'KL-001');
   const [params, setParams] = useState({
     rainfall_1h: 12.0,
     rainfall_24h: 75.0,

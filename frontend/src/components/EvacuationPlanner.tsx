@@ -25,19 +25,23 @@ interface EvacuationZone {
 }
 
 const SHELTERS: Shelter[] = [
-  { id: 'SH-001', name: 'Shillong Municipal Relief Camp', type: 'relief-camp', lat: 25.58, lng: 91.89, capacity: 500, occupancy: 120, distance_km: 2.4, contact: '+91-364-2223456', status: 'open' },
-  { id: 'SH-002', name: 'Civil Hospital Shillong', type: 'hospital', lat: 25.57, lng: 91.88, capacity: 200, occupancy: 145, distance_km: 3.1, contact: '+91-364-2224567', status: 'open' },
-  { id: 'SH-003', name: 'Aizawl NDMA Emergency Shelter', type: 'shelter', lat: 23.73, lng: 92.72, capacity: 350, occupancy: 80, distance_km: 1.8, contact: '+91-389-2321000', status: 'open' },
-  { id: 'SH-004', name: 'Kohima Fire Station', type: 'fire-station', lat: 25.67, lng: 94.11, capacity: 80, occupancy: 12, distance_km: 4.2, contact: '+91-370-2290456', status: 'open' },
-  { id: 'SH-005', name: 'Gangtok District Hospital', type: 'hospital', lat: 27.33, lng: 88.61, capacity: 300, occupancy: 210, distance_km: 5.8, contact: '+91-3592-202525', status: 'open' },
-  { id: 'SH-006', name: 'Imphal Manipur Relief Camp', type: 'relief-camp', lat: 24.82, lng: 93.94, capacity: 250, occupancy: 190, distance_km: 2.9, contact: '+91-385-2451230', status: 'preparing' },
+  { id: 'SH-001', name: 'Wayanad Government Taluk Hospital & Relief Camp', type: 'hospital', lat: 11.53, lng: 76.13, capacity: 450, occupancy: 210, distance_km: 3.2, contact: '+91-4936-202444', status: 'open' },
+  { id: 'SH-002', name: 'Mandi Zonal Hospital & Disaster Ward', type: 'hospital', lat: 31.70, lng: 76.93, capacity: 350, occupancy: 180, distance_km: 2.5, contact: '+91-1905-222100', status: 'open' },
+  { id: 'SH-003', name: 'Rishikesh AIIMS Emergency Trauma Center', type: 'hospital', lat: 30.07, lng: 78.28, capacity: 600, occupancy: 390, distance_km: 6.8, contact: '+91-135-2462929', status: 'open' },
+  { id: 'SH-004', name: 'Munnar Tea Estate High School Relief Shelter', type: 'relief-camp', lat: 10.08, lng: 77.06, capacity: 300, occupancy: 95, distance_km: 1.9, contact: '+91-4865-230230', status: 'open' },
+  { id: 'SH-005', name: 'Mahad Municipal Sports Complex Shelter (Raigad)', type: 'shelter', lat: 18.23, lng: 73.42, capacity: 400, occupancy: 120, distance_km: 2.1, contact: '+91-2145-222123', status: 'open' },
+  { id: 'SH-006', name: 'STNM Multispeciality Hospital Gangtok', type: 'hospital', lat: 27.32, lng: 88.61, capacity: 500, occupancy: 280, distance_km: 4.1, contact: '+91-3592-202525', status: 'open' },
+  { id: 'SH-007', name: 'Darjeeling Sadar Civil Hospital', type: 'hospital', lat: 27.04, lng: 88.26, capacity: 250, occupancy: 160, distance_km: 1.7, contact: '+91-354-2254218', status: 'open' },
+  { id: 'SH-008', name: 'Shimla IGMC Emergency Relief Block', type: 'hospital', lat: 31.10, lng: 77.18, capacity: 500, occupancy: 310, distance_km: 3.5, contact: '+91-177-2804251', status: 'open' },
 ];
 
 const EVAC_ZONES: EvacuationZone[] = [
-  { id: 'EV-001', zone_name: 'Shillong Plateau Pass — Upper Slope Settlements', population: 2400, risk_level: 'CRITICAL', evacuation_status: 'alert', shelters_assigned: ['SH-001', 'SH-002'], estimated_time_min: 45 },
-  { id: 'EV-002', zone_name: 'Aizawl Hills — Valley Road Corridor', population: 1800, risk_level: 'HIGH', evacuation_status: 'standby', shelters_assigned: ['SH-003'], estimated_time_min: 35 },
-  { id: 'EV-003', zone_name: 'Kohima Ridge — North Face Hamlet', population: 650, risk_level: 'MODERATE', evacuation_status: 'standby', shelters_assigned: ['SH-004'], estimated_time_min: 20 },
-  { id: 'EV-004', zone_name: 'Imphal Hills East — Riverside Villages', population: 1100, risk_level: 'HIGH', evacuation_status: 'standby', shelters_assigned: ['SH-006'], estimated_time_min: 30 },
+  { id: 'EV-001', zone_name: 'Wayanad Chooralmala & Mundakkai Valley Basin', population: 3200, risk_level: 'CRITICAL', evacuation_status: 'alert', shelters_assigned: ['SH-001'], estimated_time_min: 40 },
+  { id: 'EV-002', zone_name: 'Mandi Pandoh Gorge & Aut Highway Cut', population: 2100, risk_level: 'CRITICAL', evacuation_status: 'alert', shelters_assigned: ['SH-002'], estimated_time_min: 35 },
+  { id: 'EV-003', zone_name: 'Rudraprayag — Kedarnath Valley Highway Hamlet', population: 1400, risk_level: 'HIGH', evacuation_status: 'standby', shelters_assigned: ['SH-003'], estimated_time_min: 50 },
+  { id: 'EV-004', zone_name: 'Idukki Pettimudi & Munnar Gap Tea Corridors', population: 1900, risk_level: 'HIGH', evacuation_status: 'standby', shelters_assigned: ['SH-004'], estimated_time_min: 45 },
+  { id: 'EV-005', zone_name: 'Raigad Mahad — Poladpur Scarp Settlements', population: 1650, risk_level: 'HIGH', evacuation_status: 'standby', shelters_assigned: ['SH-005'], estimated_time_min: 30 },
+  { id: 'EV-006', zone_name: 'North Sikkim Mangan — Chungthang River Ridge', population: 850, risk_level: 'CRITICAL', evacuation_status: 'evacuating', shelters_assigned: ['SH-006'], estimated_time_min: 60 },
 ];
 
 const getRiskColor = (level: string) => {
