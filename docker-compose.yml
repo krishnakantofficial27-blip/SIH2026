@@ -1,11 +1,27 @@
+version: '3.8'
+
 services:
-  backend:
-    build: ./backend
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
-    ports: ["8000:8000"]
-  frontend:
-    image: node:20-alpine
-    working_dir: /app
-    volumes: ["./frontend:/app"]
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
-    ports: ["5173:5173"]
+  slopesafe-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: slopesafe_backend_api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - CORS_ORIGINS=http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173
+      - SECRET_KEY=slopesafe_sih2026_institutional_production_key
+    volumes:
+      - slopesafe_data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  slopesafe_data:
+    driver: local

@@ -18,13 +18,17 @@ import { EvacuationPlanner } from './components/EvacuationPlanner';
 import { HistoricalTimeline } from './components/HistoricalTimeline';
 import { EmergencyHelp } from './components/EmergencyHelp';
 import { MethodologyPage } from './components/MethodologyPage';
+import { MLValidationDossierComponent } from './components/MLValidationDossier';
+import { RealDataCatalogComponent } from './components/RealDataCatalog';
+import { RemoteSensingViewerComponent } from './components/RemoteSensingViewer';
+import { ProductionDiagnosticsComponent } from './components/ProductionDiagnostics';
 import { TRANSLATIONS, Language } from './utils/translations';
 
 import { 
   ShieldCheck, AlertTriangle, MapPinned, Route, Users, CloudRain, 
   Play, Send, Layers, BarChart3, Bell, Menu, X, Globe, LogIn, LogOut, UserCheck,
   Brain, Activity, Siren, Calendar, CloudSun, Phone, BookOpen, Clock, Sparkles, CheckCircle2,
-  RefreshCw, Radio, Zap
+  RefreshCw, Radio, Zap, Award, Orbit, Server, Sliders, Database, Lock
 } from 'lucide-react';
 import './style.css';
 
@@ -34,6 +38,10 @@ type Tab =
   | 'sensors' 
   | 'weather' 
   | 'ml' 
+  | 'ml_validation'
+  | 'remote_sensing'
+  | 'real_data'
+  | 'diagnostics'
   | 'analytics' 
   | 'route' 
   | 'evacuation' 
@@ -353,10 +361,16 @@ function App() {
           <button className={activeTab === 'weather' ? 'active' : ''} onClick={() => handleTabClick('weather')}>
             <CloudSun size={17} /> {t('weather')}
           </button>
+          <button className={activeTab === 'remote_sensing' ? 'active' : ''} onClick={() => handleTabClick('remote_sensing')}>
+            <Orbit size={17} /> Satellite InSAR &amp; NDVI
+          </button>
 
           <div className="nav-section-label">AI & PREDICTION</div>
           <button className={activeTab === 'ml' ? 'active' : ''} onClick={() => handleTabClick('ml')}>
-            <Brain size={17} /> {t('ml')}
+            <Brain size={17} /> {t('ml')} (Playground)
+          </button>
+          <button className={activeTab === 'ml_validation' ? 'active' : ''} onClick={() => handleTabClick('ml_validation')}>
+            <Award size={17} /> Scientific ML Validation (ROC/CV)
           </button>
           <button className={activeTab === 'analytics' ? 'active' : ''} onClick={() => handleTabClick('analytics')}>
             <BarChart3 size={17} /> {t('analytics')}
@@ -382,18 +396,22 @@ function App() {
             <Bell size={17} /> {t('alerts')} ({activeAlertsCount})
           </button>
 
-          <div className="nav-section-label">RESEARCH & HISTORY</div>
+          <div className="nav-section-label">RESEARCH & DATA</div>
+          <button className={activeTab === 'real_data' ? 'active' : ''} onClick={() => handleTabClick('real_data')}>
+            <Database size={17} /> GSI &amp; NASA Disaster Catalog
+          </button>
           <button className={activeTab === 'history' ? 'active' : ''} onClick={() => handleTabClick('history')}>
             <Calendar size={17} /> {t('history')}
           </button>
 
+          <div className="nav-section-label">OFFICIAL COMMAND &amp; DEVOPS</div>
+          <button className={activeTab === 'diagnostics' ? 'active' : ''} onClick={() => handleTabClick('diagnostics')}>
+            <Server size={17} /> DevOps Health &amp; Security Audit
+          </button>
           {role === 'Authority' && (
-            <>
-              <div className="nav-section-label">OFFICIAL COMMAND</div>
-              <button className={activeTab === 'authority' ? 'active' : ''} onClick={() => handleTabClick('authority')}>
-                <ShieldCheck size={17} /> {t('authority_console')}
-              </button>
-            </>
+            <button className={activeTab === 'authority' ? 'active' : ''} onClick={() => handleTabClick('authority')}>
+              <ShieldCheck size={17} /> {t('authority_console')}
+            </button>
           )}
         </nav>
 
@@ -493,6 +511,41 @@ function App() {
                 </button>
               </div>
             </section>
+
+            {/* Institutional SIH Innovation & Scientific Modules Quick Bar */}
+            <div className="institutional-quick-bar">
+              <span className="iqb-label">INSTITUTIONAL CORE:</span>
+              <button 
+                className={`iqb-pill ${activeTab === 'ml_validation' ? 'active' : ''}`}
+                onClick={() => setActiveTab('ml_validation')}
+              >
+                <Award size={14} /> ML Validation (ROC-AUC: 0.948)
+              </button>
+              <button 
+                className={`iqb-pill ${activeTab === 'remote_sensing' ? 'active' : ''}`}
+                onClick={() => setActiveTab('remote_sensing')}
+              >
+                <Orbit size={14} /> Satellite InSAR &amp; NDVI
+              </button>
+              <button 
+                className={`iqb-pill ${activeTab === 'real_data' ? 'active' : ''}`}
+                onClick={() => setActiveTab('real_data')}
+              >
+                <Database size={14} /> GSI/NASA Ground Truth
+              </button>
+              <button 
+                className={`iqb-pill ${activeTab === 'diagnostics' ? 'active' : ''}`}
+                onClick={() => setActiveTab('diagnostics')}
+              >
+                <Server size={14} /> DevOps &amp; SHA-256 Audit
+              </button>
+              <button 
+                className={`iqb-pill ${activeTab === 'sensors' ? 'active' : ''}`}
+                onClick={() => setActiveTab('sensors')}
+              >
+                <Activity size={14} /> IoT Telemetry Array
+              </button>
+            </div>
 
             {/* High-Level Overview KPI Cards */}
             <section className="stats">
@@ -730,6 +783,34 @@ function App() {
             {activeTab === 'history' && (
               <div className="tab-container">
                 <HistoricalTimeline />
+              </div>
+            )}
+
+            {/* Tab: Scientific ML Validation (ROC-AUC / 5-Fold CV / PR Curve / Physics) */}
+            {activeTab === 'ml_validation' && (
+              <div className="tab-container">
+                <MLValidationDossierComponent />
+              </div>
+            )}
+
+            {/* Tab: Satellite Earth Observation & InSAR Radar Observatory */}
+            {activeTab === 'remote_sensing' && (
+              <div className="tab-container">
+                <RemoteSensingViewerComponent />
+              </div>
+            )}
+
+            {/* Tab: GSI & NASA Historical Ground Truth Disaster Catalog */}
+            {activeTab === 'real_data' && (
+              <div className="tab-container">
+                <RealDataCatalogComponent />
+              </div>
+            )}
+
+            {/* Tab: DevOps Architecture Diagnostics, RBAC & SHA-256 Audit Trail */}
+            {activeTab === 'diagnostics' && (
+              <div className="tab-container">
+                <ProductionDiagnosticsComponent />
               </div>
             )}
 
