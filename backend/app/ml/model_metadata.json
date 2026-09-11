@@ -1,0 +1,30 @@
+{
+  "model_version": "rf-v2.0-real",
+  "algorithm": "CalibratedClassifierCV(RandomForestClassifier(n_estimators=120))",
+  "training_timestamp": "2026-09-11T12:13:20Z",
+  "total_samples": 1500,
+  "positive_samples": 600,
+  "negative_samples": 900,
+  "features": [
+    "rainfall_1h",
+    "rainfall_24h",
+    "rainfall_72h",
+    "slope_deg",
+    "elevation",
+    "soil_moisture",
+    "ndvi",
+    "land_cover",
+    "historical_landslides",
+    "api_7d_index",
+    "pore_saturation_ratio",
+    "shear_stress_proxy"
+  ],
+  "primary_metrics": {
+    "accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1_score": 1.0,
+    "roc_auc": 1.0,
+    "pr_auc": 1.0
+  }
+}

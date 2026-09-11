@@ -509,5 +509,55 @@ export interface DataModeStatus {
   disclaimer: string;
 }
 
+export interface LiveLocationPredictionRequest {
+  latitude: number;
+  longitude: number;
+  rainfall_1h?: number;
+  rainfall_24h?: number;
+  rainfall_72h?: number;
+  slope_deg?: number;
+  elevation?: number;
+  soil_moisture?: number;
+  ndvi?: number;
+  land_cover?: number;
+  location_name?: string;
+  community_report_count?: number;
+}
+
+export interface LiveLocationPredictionResponse {
+  location_name: string;
+  coordinates: {
+    latitude: number;
+    longitude: number;
+  };
+  nearest_zone_id?: string;
+  distance_to_nearest_corridor_km?: number;
+  risk_score: number;
+  risk_level: string;
+  ml_score: number;
+  community_adjustment: number;
+  confidence: number;
+  factor_of_safety: number;
+  geotechnical_state: string;
+  weather_telemetry: {
+    rainfall_1h: number;
+    rainfall_24h: number;
+    rainfall_72h: number;
+    soil_moisture: number;
+    data_source: string;
+    status: string;
+    fetched_at?: string;
+  };
+  terrain_telemetry: {
+    slope_deg: number;
+    elevation_m: number;
+    ndvi: number;
+    land_cover: number;
+  };
+  factors_breakdown: FactorContribution[];
+  recommendation: string;
+  action_advice: string;
+}
+
 
 

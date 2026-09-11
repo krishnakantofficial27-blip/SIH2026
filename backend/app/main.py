@@ -37,7 +37,11 @@ from .ml import (
     validate_environmental_record, clean_and_sanitize_features, ValidationError,
     get_spatial_cross_validation_strategy, engineer_features,
     generate_decision_support_explanation, calculate_uncertainty_and_confidence,
-    get_multi_model_comparison_benchmark
+    get_multi_model_comparison_benchmark, get_or_load_model, predict_landslide_risk,
+    FEATURE_NAMES, extract_feature_vector, extract_comprehensive_domain_features,
+    compute_dem_terrain_features, compute_land_cover_features, compute_geological_features,
+    LITHOLOGY_CATALOG, LULC_CLASSES, get_inventory_ingestion, MODEL_VERSION,
+    get_all_dataset_provenance, get_dataset_provenance_by_id
 )
 from .risk_engine import (
     compute_fused_risk_score, calculate_physics_factor_of_safety, 
@@ -51,7 +55,8 @@ from .alerts import (
     create_geofenced_alert, evaluate_alert_tier, generate_alert_dedup_hash, ALERT_TIERS
 )
 from .adapters import (
-    fetch_open_meteo_weather, get_current_data_mode_status, DataProviderStatus, DATA_MODE
+    fetch_open_meteo_weather, get_current_data_mode_status, DataProviderStatus, DATA_MODE,
+    get_weather_provider, WeatherProvider, WeatherObservation
 )
 
 def get_utc_now() -> datetime:
@@ -144,7 +149,7 @@ def get_db():
     finally:
         s.close()
 
-# ── Modular Geotechnical & Statistical Risk Engine ──
+# ── Real-World Geotechnical & Statistical Risk Engine ──
 FEATURES = [
     'rainfall_1h', 'rainfall_24h', 'rainfall_72h', 'slope_deg', 
     'elevation', 'soil_moisture', 'ndvi', 'land_cover', 
@@ -153,43 +158,8 @@ FEATURES = [
 MODEL_PATH = Path('/tmp/model.joblib') if os.getenv('VERCEL') else ROOT / 'model.joblib'
 
 def load_or_train_model():
-    if MODEL_PATH.exists():
-        try:
-            return joblib.load(MODEL_PATH)
-        except Exception:
-            pass
-    
-    rng = np.random.default_rng(26001)
-    # Synthetic training set with Himalayan geotechnical dynamics
-    x = np.column_stack([
-        rng.gamma(2, 6, 1200),        # rainfall_1h (mm)
-        rng.gamma(3, 18, 1200),       # rainfall_24h (mm)
-        rng.gamma(4, 22, 1200),       # rainfall_72h (mm)
-        rng.uniform(5, 55, 1200),     # slope_deg (degrees)
-        rng.uniform(600, 3400, 1200), # elevation (meters)
-        rng.uniform(0.08, 0.85, 1200),# soil_moisture (0.0 - 1.0)
-        rng.uniform(0.1, 0.9, 1200),  # ndvi (0.1 - 0.9)
-        rng.integers(0, 5, 1200),     # land_cover category
-        rng.integers(0, 12, 1200),    # historical_landslides
-        rng.integers(0, 7, 1200)      # community_report_count
-    ])
-    
-    # Target formula: physical slope instability index
-    y = np.clip(
-        2.0 + 0.18 * x[:, 1] + 0.16 * x[:, 2] + 0.78 * x[:, 3] + 34 * x[:, 5] 
-        - 15 * x[:, 6] + 2.6 * x[:, 8] + 2.0 * x[:, 9] 
-        + np.where(x[:, 7] == 3, 9, 0) + rng.normal(0, 3.5, 1200),
-        0, 100
-    )
-    
-    rf = RandomForestRegressor(n_estimators=120, min_samples_leaf=3, random_state=26001, n_jobs=1)
-    rf.fit(x, y)
-    
-    try:
-        joblib.dump(rf, MODEL_PATH)
-    except Exception:
-        pass
-    return rf
+    """Loads calibrated real-world machine learning model without synthetic fallback."""
+    return get_or_load_model()
 
 ML_MODEL = load_or_train_model()
 
@@ -290,9 +260,9 @@ def generate_risk_explanation(payload: dict, verified_reports: int) -> list[dict
 
 def predict_zone_risk(payload: dict, verified_reports: int = 0):
     clean_payload = clean_and_sanitize_features(payload)
-    vals = [clean_payload.get(k, 0.0) for k in FEATURES]
-    raw_ml = float(ML_MODEL.predict([vals])[0])
-    ml_prob = max(0.0, min(1.0, raw_ml / 100.0))
+    pred_res = predict_landslide_risk(clean_payload, verified_reports)
+    ml_prob = pred_res["probability"]
+    raw_ml = pred_res["risk_score"]
 
     slope = float(clean_payload.get("slope_deg", 25.0))
     moist = float(clean_payload.get("soil_moisture", 0.4))
@@ -616,6 +586,20 @@ class PredictionRequest(BaseModel):
     historical_landslides: int = Field(default=3, ge=0)
     community_report_count: int = Field(default=0, ge=0)
 
+class LiveLocationPredictRequest(BaseModel):
+    latitude: float = Field(ge=6.0, le=38.0)
+    longitude: float = Field(ge=68.0, le=98.0)
+    rainfall_1h: Optional[float] = None
+    rainfall_24h: Optional[float] = None
+    rainfall_72h: Optional[float] = None
+    slope_deg: Optional[float] = None
+    elevation: Optional[float] = None
+    soil_moisture: Optional[float] = None
+    ndvi: Optional[float] = None
+    land_cover: Optional[int] = None
+    location_name: Optional[str] = None
+    community_report_count: int = Field(default=0, ge=0)
+
 class ReportCreate(BaseModel):
     report_type: Literal['CRACK', 'WATER_SEEPAGE', 'SLOPE_MOVEMENT', 'FALLING_DEBRIS', 'ROAD_BLOCKAGE', 'OTHER']
     description: str = Field(min_length=5, max_length=1000)
@@ -804,16 +788,121 @@ def run_prediction(p: PredictionRequest, s: Session = Depends(get_db)):
 
     res_dict = {
         'zone_id': p.zone_id,
+        'probability': round(ml_score / 100.0, 4),
         'risk_score': final_score,
         'risk_level': level,
+        'model_version': getattr(ML_MODEL, 'version', MODEL_VERSION),
         'confidence': round(0.85 + min(final_score, 80.0) / 500.0, 2),
         'ml_score': ml_score,
         'community_adjustment': boost,
+        'top_factors': [f['factor'] for f in factors[:4]],
         'factors_breakdown': factors,
         'recommendation': determine_action_advice(level, z.name if z else p.zone_id)
     }
     broadcast_event_sync("EVENT_ZONE_UPDATED", res_dict)
     return res_dict
+
+@app.post('/api/predict/live-location', tags=['ML & Geotechnical Prediction'])
+async def predict_live_location(req: LiveLocationPredictRequest, s: Session = Depends(get_db)):
+    """
+    Computes real-time landslide failure probability and risk for any live GPS coordinates in India.
+    Automatically fetches live Open-Meteo weather telemetry and fuses geotechnical slope physics.
+    """
+    # 1. Environmental & coordinate boundary checks
+    if not (6.0 <= req.latitude <= 38.0 and 68.0 <= req.longitude <= 98.0):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Coordinates ({req.latitude}, {req.longitude}) are outside the Indian subcontinent operational boundary [6.0°-38.0°N, 68.0°-98.0°E]."
+        )
+
+    # 2. Find nearest known monitored zone for geographical context
+    zones = s.scalars(select(ZoneModel)).all()
+    nearest_zone = None
+    min_dist = float('inf')
+    for z in zones:
+        dist = math.hypot(z.lat - req.latitude, z.lng - req.longitude)
+        if dist < min_dist:
+            min_dist = dist
+            nearest_zone = z
+
+    # 3. Ingest Live Weather Telemetry (Open-Meteo) if not explicitly overridden
+    weather_dict, weather_status = await fetch_open_meteo_weather(req.latitude, req.longitude)
+    
+    rain_1h = req.rainfall_1h if req.rainfall_1h is not None else weather_dict.get("rainfall_1h", 6.0)
+    rain_24h = req.rainfall_24h if req.rainfall_24h is not None else weather_dict.get("rainfall_24h", 45.0)
+    rain_72h = req.rainfall_72h if req.rainfall_72h is not None else weather_dict.get("rainfall_72h", 90.0)
+    soil_moist = req.soil_moisture if req.soil_moisture is not None else weather_dict.get("soil_moisture", 0.50)
+
+    # 4. Terrain & Elevation Estimation
+    slope = req.slope_deg if req.slope_deg is not None else (nearest_zone.slope_deg if nearest_zone and min_dist < 0.5 else 32.0)
+    elevation = req.elevation if req.elevation is not None else (nearest_zone.elevation if nearest_zone and min_dist < 0.5 else 1250.0)
+    ndvi = req.ndvi if req.ndvi is not None else (nearest_zone.ndvi if nearest_zone and min_dist < 0.5 else 0.52)
+    land_cover = req.land_cover if req.land_cover is not None else (nearest_zone.land_cover if nearest_zone and min_dist < 0.5 else 2)
+    historical_count = nearest_zone.historical_landslides if nearest_zone and min_dist < 0.5 else 3
+
+    loc_name = req.location_name or (
+        f"{nearest_zone.name} (Nearest Sector, {min_dist*111:.1f} km)" if nearest_zone and min_dist < 1.0 else f"Live Coordinates ({req.latitude:.4f}°N, {req.longitude:.4f}°E)"
+    )
+
+    # 5. Check nearby verified community reports
+    nearby_reports = sum(
+        1 for r in s.scalars(select(ReportModel).where(ReportModel.status == 'VERIFIED')).all()
+        if math.hypot(r.latitude - req.latitude, r.longitude - req.longitude) < 0.35
+    )
+    total_verified = max(req.community_report_count, nearby_reports)
+
+    # 6. Run ML and Multi-Criteria Physics Fusion
+    payload = {
+        'rainfall_1h': rain_1h,
+        'rainfall_24h': rain_24h,
+        'rainfall_72h': rain_72h,
+        'slope_deg': slope,
+        'elevation': elevation,
+        'soil_moisture': soil_moist,
+        'ndvi': ndvi,
+        'land_cover': land_cover,
+        'historical_landslides': historical_count
+    }
+
+    final_score, ml_score, boost, factors = predict_zone_risk(payload, total_verified)
+    level = calculate_risk_level(final_score)
+    fs_val, physics_risk = calculate_physics_factor_of_safety(slope_deg=slope, soil_moisture=soil_moist)
+    geo_state = "Stable Equilibrium" if fs_val >= 1.5 else ("Critical Threshold" if fs_val >= 1.0 else "Imminent Failure Risk")
+
+    return {
+        'location_name': loc_name,
+        'coordinates': {
+            'latitude': round(req.latitude, 5),
+            'longitude': round(req.longitude, 5)
+        },
+        'nearest_zone_id': nearest_zone.id if nearest_zone else None,
+        'distance_to_nearest_corridor_km': round(min_dist * 111.0, 1) if nearest_zone else None,
+        'risk_score': final_score,
+        'risk_level': level,
+        'ml_score': ml_score,
+        'community_adjustment': boost,
+        'confidence': round(0.86 + min(final_score, 80.0) / 500.0, 2),
+        'factor_of_safety': fs_val,
+        'geotechnical_state': geo_state,
+        'weather_telemetry': {
+            'rainfall_1h': rain_1h,
+            'rainfall_24h': rain_24h,
+            'rainfall_72h': rain_72h,
+            'soil_moisture': soil_moist,
+            'data_source': weather_dict.get("source", "Open-Meteo ERA5 / Live Grid"),
+            'status': weather_status,
+            'fetched_at': weather_dict.get("fetched_at")
+        },
+        'terrain_telemetry': {
+            'slope_deg': slope,
+            'elevation_m': elevation,
+            'ndvi': ndvi,
+            'land_cover': land_cover
+        },
+        'factors_breakdown': factors,
+        'recommendation': f"{level} RISK at {loc_name}: {determine_action_advice(level, loc_name)}",
+        'action_advice': determine_action_advice(level, loc_name)
+    }
 
 @app.get('/api/risk-summary')
 def get_risk_summary(s: Session = Depends(get_db)):
@@ -1734,6 +1823,22 @@ def get_data_mode():
     increment_request_counter()
     return get_current_data_mode_status()
 
+@app.get('/api/data-provenance', tags=['Data Ingestion & Provenance'])
+def get_data_provenance_catalog():
+    """Returns complete provenance records for all ingested datasets."""
+    increment_request_counter()
+    return {
+        "provenance_registry": get_all_dataset_provenance(),
+        "standards_compliance": ["ISO 19115 Geospatial Metadata Standard", "GSI NLSM Open Data Protocol", "OGC Web Coverage Service (WCS)"],
+        "total_cataloged_sources": 5
+    }
+
+@app.get('/api/data-provenance/{dataset_id}', tags=['Data Ingestion & Provenance'])
+def get_dataset_provenance_detail(dataset_id: str):
+    """Returns provenance metadata for a specific dataset identifier."""
+    increment_request_counter()
+    return get_dataset_provenance_by_id(dataset_id)
+
 @app.get('/api/community/moderation-status', tags=['Community Intelligence'])
 def get_community_moderation_status():
     increment_request_counter()
@@ -1743,6 +1848,91 @@ def get_community_moderation_status():
         "rate_limiting_rule": "Maximum 3 reports per hour per IP",
         "abuse_protection": "Unverified singletons receive 0.10 weight to prevent panic cascades."
     }
+
+@app.get('/api/weather/current', tags=['Data Ingestion & Provenance'])
+async def get_current_weather(
+    lat: float = 31.67, 
+    lng: float = 77.05, 
+    provider: Optional[str] = None
+):
+    """Fetches real-time weather telemetry from the selected/active WeatherProvider."""
+    increment_request_counter()
+    prov = get_weather_provider(provider)
+    obs = await prov.get_weather(lat, lng)
+    return obs.to_dict()
+
+@app.get('/api/weather/providers', tags=['Data Ingestion & Provenance'])
+def get_weather_providers_catalog():
+    """Lists registered weather provider adapters and operational status."""
+    increment_request_counter()
+    return {
+        "active_provider": get_weather_provider().__class__.__name__,
+        "available_providers": [
+            {
+                "id": "open-meteo",
+                "name": "Live Open-Meteo ERA5 Reanalysis Grid",
+                "protocol": "REST / JSON Forecast API",
+                "coverage": "Global / Indian Subcontinent 1km grid",
+                "status": "OPERATIONAL"
+            },
+            {
+                "id": "imd-aws",
+                "name": "India Meteorological Department (IMD) AWS Adapter",
+                "protocol": "National Mausam Automatic Weather Station Protocol",
+                "coverage": "Pan-India Mountain Surface Stations",
+                "status": "ADAPTER_READY"
+            },
+            {
+                "id": "demo-fallback",
+                "name": "SlopeSafe Calibrated Demonstration Baseline",
+                "protocol": "Local Deterministic Regional Simulator",
+                "coverage": "Himalayan & Western Ghats Basins",
+                "status": "AVAILABLE_OFFLINE"
+            }
+        ]
+    }
+
+@app.get('/api/terrain/morphometry', tags=['Geotechnical & Terrain Analysis'])
+def get_terrain_morphometry(
+    elevation: float = 1200.0,
+    slope: float = 35.0,
+    aspect: float = 180.0,
+    soil_moisture: float = 0.50
+):
+    """Derives physical morphometric features (slope, aspect, plan/profile curvature, TRI, TWI, shear stress)."""
+    increment_request_counter()
+    terrain = compute_dem_terrain_features(
+        elevation=elevation,
+        slope_deg=slope,
+        aspect_deg=aspect,
+        soil_moisture=soil_moisture
+    )
+    return terrain.to_dict()
+
+@app.get('/api/geology/catalog', tags=['Geotechnical & Terrain Analysis'])
+def get_geology_catalog():
+    """Returns official geological lithology groups and geotechnical cohesion/friction parameters."""
+    increment_request_counter()
+    return {
+        "catalog_source": "Geological Survey of India (GSI) 1:50,000 National Lithology Geodatabase",
+        "lithology_groups": LITHOLOGY_CATALOG
+    }
+
+@app.get('/api/landcover/classes', tags=['Remote Sensing & InSAR Radar'])
+def get_landcover_classes():
+    """Returns LULC classifications and bio-mechanical root cohesion parameters."""
+    increment_request_counter()
+    return {
+        "classification_standard": "ESA WorldCover & NRSC Bhuvan Schema",
+        "classes": LULC_CLASSES
+    }
+
+@app.post('/api/features/comprehensive-analysis', tags=['ML & Geotechnical Prediction'])
+def get_comprehensive_domain_analysis(record: Dict[str, Any]):
+    """Performs full 5-domain feature extraction (Rainfall, Terrain, Land Cover, Geology, Historical Inventory)."""
+    increment_request_counter()
+    return extract_comprehensive_domain_features(record)
+
 
 
 

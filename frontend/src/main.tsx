@@ -632,6 +632,7 @@ function App() {
                       onOpenModalZone={z => setModalZone(z)}
                       onOpenReportModal={() => setActiveTab('report')}
                       onNavigateToRoute={() => setActiveTab('route')} 
+                      onNavigateToAlerts={() => setActiveTab('alerts')}
                       routeData={routeData}
                       userLocation={userLocation} 
                       onFetchLocation={handleFetchLocation} 
@@ -684,6 +685,7 @@ function App() {
                   onOpenModalZone={z => setModalZone(z)}
                   onOpenReportModal={() => setActiveTab('report')}
                   onNavigateToRoute={() => setActiveTab('route')} 
+                  onNavigateToAlerts={() => setActiveTab('alerts')}
                   routeData={routeData}
                   userLocation={userLocation} 
                   onFetchLocation={handleFetchLocation} 

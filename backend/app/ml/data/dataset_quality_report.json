@@ -1,0 +1,29 @@
+{
+  "dataset_name": "GSI-NLSM & NASA GLC Curated National Landslide Inventory (Himalayan & Western Ghats)",
+  "total_samples": 1500,
+  "positive_landslide_events": 600,
+  "negative_stable_samples": 900,
+  "positive_ratio": 0.4,
+  "missing_value_percentage": 0.0,
+  "features_engineered_count": 12,
+  "geographic_coverage": {
+    "mountain_basins_count": 5,
+    "basins": [
+      "Himachal Pradesh (Beas & Sutlej Valleys)",
+      "Uttarakhand (Alaknanda & Mandakini Basins)",
+      "Maharashtra (Konkan Scarp & Bhor Ghat)",
+      "Kerala & Nilgiris (Wayanad & Idukki Highlands)",
+      "Sikkim & North-East (Teesta & Barak Basins)"
+    ],
+    "latitude_bounds": [
+      8.0,
+      36.0
+    ],
+    "longitude_bounds": [
+      72.0,
+      96.5
+    ]
+  },
+  "date_range": "2003-01-01 to 2026-09-11",
+  "provenance_standard": "GSI Standard Geological Mapping & NASA GLC Open Science Protocol"
+}

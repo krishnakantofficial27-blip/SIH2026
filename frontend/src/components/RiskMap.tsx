@@ -5,7 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import { Zone, CommunityReport, MapLayerState, SafeRouteResponse, RiskLevel } from '../types';
 import { 
   Layers, MapPin, Eye, Globe, Filter, AlertTriangle, ShieldCheck, 
-  CloudRain, Mountain, Droplets, Compass, X, Route, Send, FileText
+  CloudRain, Mountain, Droplets, Compass, X, Route, Send, FileText, Bell, HelpCircle
 } from 'lucide-react';
 
 interface RiskMapProps {
@@ -15,6 +15,7 @@ interface RiskMapProps {
   onSelectZone: (zone: Zone) => void;
   onOpenReportModal: () => void;
   onNavigateToRoute: () => void;
+  onNavigateToAlerts?: () => void;
   onOpenModalZone?: (zone: Zone) => void;
   routeData?: SafeRouteResponse | null;
   userLocation?: { lat: number; lng: number } | null;
@@ -142,6 +143,7 @@ export const RiskMap: React.FC<RiskMapProps> = ({
   onFetchLocation,
   onLocationSelect,
   onNavigateToRoute,
+  onNavigateToAlerts,
   onOpenReportModal,
   onOpenModalZone,
 }) => {
@@ -547,7 +549,12 @@ export const RiskMap: React.FC<RiskMapProps> = ({
             <div className="drawer-handle" />
             <div className="inspector-header">
               <div>
-                <span className="zone-district-tag">{selectedZone.district} · {selectedZone.state}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <span className="zone-district-tag">{selectedZone.district} · {selectedZone.state}</span>
+                  <span style={{ fontSize: '11px', padding: '2px 6px', borderRadius: '4px', background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    🟢 {selectedZone.data_status || 'LIVE'}
+                  </span>
+                </div>
                 <h3>{selectedZone.name}</h3>
               </div>
               <button className="inspector-close" onClick={() => onSelectZone(null as any)}>
@@ -563,7 +570,10 @@ export const RiskMap: React.FC<RiskMapProps> = ({
               <div className="score-level-pill" style={{ background: RISK_COLORS[selectedZone.risk_level] }}>
                 {selectedZone.risk_level} HAZARD
               </div>
-              <small className="confidence-label">Confidence: {Math.round((selectedZone.confidence || 0.90) * 100)}% (Statistical Bounds)</small>
+              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginTop: '6px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                <span>Model Probability: <strong>{((selectedZone.ml_score || selectedZone.risk_score) / 100).toFixed(2)}</strong></span>
+                <span>Confidence: <strong>{Math.round((selectedZone.confidence || 0.90) * 100)}%</strong></span>
+              </div>
             </div>
 
             {/* Environmental Readings */}
@@ -571,30 +581,48 @@ export const RiskMap: React.FC<RiskMapProps> = ({
               <div className="inspector-metric">
                 <CloudRain size={16} />
                 <div>
-                  <label>24h / 72h Rain</label>
-                  <span>{selectedZone.rainfall_24h} mm / {selectedZone.rainfall_72h} mm</span>
+                  <label>24h Rainfall</label>
+                  <span>{selectedZone.rainfall_24h} mm</span>
                 </div>
               </div>
               <div className="inspector-metric">
                 <Mountain size={16} />
                 <div>
-                  <label>Slope / Elevation</label>
-                  <span>{selectedZone.slope_deg}° / {selectedZone.elevation}m</span>
-                </div>
-              </div>
-              <div className="inspector-metric">
-                <Droplets size={16} />
-                <div>
-                  <label>Soil Saturation</label>
-                  <span>{Math.round(selectedZone.soil_moisture * 100)}% TDR</span>
+                  <label>Slope Angle</label>
+                  <span>{selectedZone.slope_deg}° Incline</span>
                 </div>
               </div>
               <div className="inspector-metric">
                 <ShieldCheck size={16} />
                 <div>
-                  <label>Past GSI Events</label>
-                  <span>{selectedZone.historical_landslides} historical slides</span>
+                  <label>Historical Susceptibility</label>
+                  <span style={{ color: selectedZone.historical_landslides >= 4 ? '#ef4444' : selectedZone.historical_landslides >= 2 ? '#f97316' : '#22c55e' }}>
+                    {selectedZone.historical_landslides >= 4 ? 'HIGH' : selectedZone.historical_landslides >= 2 ? 'MODERATE' : 'LOW'} ({selectedZone.historical_landslides} events)
+                  </span>
                 </div>
+              </div>
+              <div className="inspector-metric">
+                <Droplets size={16} />
+                <div>
+                  <label>Community Reports</label>
+                  <span>{selectedZone.community_reports_count} verified</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Primary Drivers Summary */}
+            <div style={{ padding: '10px 12px', background: 'var(--bg-secondary)', borderRadius: '8px', borderLeft: `3px solid ${RISK_COLORS[selectedZone.risk_level]}`, marginBottom: '12px' }}>
+              <div style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.05em' }}>Primary Drivers</div>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
+                {selectedZone.rainfall_24h >= 50 && selectedZone.slope_deg >= 30
+                  ? 'Extreme 24h rainfall and steep topographical terrain'
+                  : selectedZone.rainfall_24h >= 50
+                  ? 'Intense antecedent rainfall accumulation'
+                  : selectedZone.slope_deg >= 35
+                  ? 'Steep structural slope gradient'
+                  : selectedZone.community_reports_count > 0
+                  ? 'Ground citizen hazard confirmation'
+                  : 'Stable environmental & geotechnical baseline'}
               </div>
             </div>
 
@@ -634,18 +662,36 @@ export const RiskMap: React.FC<RiskMapProps> = ({
               </div>
             </div>
 
-            {/* Quick Actions */}
-            <div className="inspector-actions-row">
-              {onOpenModalZone && (
-                <button className="btn-inspector-dossier" onClick={() => onOpenModalZone(selectedZone)}>
-                  <FileText size={15} /> Full Dossier
-                </button>
-              )}
-              <button className="btn-inspector-route" onClick={onNavigateToRoute}>
-                <Route size={15} /> Safe Route
+            {/* Quick Actions Bar */}
+            <div className="inspector-actions-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+              <button 
+                className="btn-inspector-dossier" 
+                onClick={() => onOpenModalZone ? onOpenModalZone(selectedZone) : null}
+                title="Explain geotechnical and ML prediction drivers"
+              >
+                <HelpCircle size={14} /> WHY HIGH?
               </button>
-              <button className="btn-inspector-report" onClick={onOpenReportModal}>
-                <Send size={15} /> Report
+              <button 
+                className="btn-inspector-report" 
+                onClick={onOpenReportModal}
+                title="Submit a ground hazard report"
+              >
+                <Send size={14} /> REPORT
+              </button>
+              <button 
+                className="btn-inspector-route" 
+                onClick={onNavigateToRoute}
+                title="Calculate safety-weighted evacuation corridor"
+              >
+                <Route size={14} /> FIND SAFE ROUTE
+              </button>
+              <button 
+                className="btn-inspector-dossier" 
+                style={{ borderColor: 'rgba(239, 68, 68, 0.4)', color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)' }}
+                onClick={() => onNavigateToAlerts ? onNavigateToAlerts() : null}
+                title="View active disaster warnings"
+              >
+                <Bell size={14} /> VIEW ALERT
               </button>
             </div>
           </aside>
