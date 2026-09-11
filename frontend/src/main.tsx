@@ -98,17 +98,21 @@ function App() {
     setToasts(prev => prev.filter(t => t.id !== id));
   };
 
+  const [dataMode, setDataMode] = useState<{ configured_mode: string; is_real_data: boolean; status_badge: string } | null>(null);
+
   const loadData = useCallback(async () => {
     try {
-      const health = await apiService.checkHealth();
-      const isDemo = health?.mode?.includes('demo') || health?.mode?.includes('offline');
-
-      const [zList, sData, aList, rList] = await Promise.all([
+      const [health, modeStatus, zList, sData, aList, rList] = await Promise.all([
+        apiService.checkHealth(),
+        apiService.getDataModeStatus(),
         apiService.getZones(),
         apiService.getRiskSummary(),
         apiService.getAlerts(),
         apiService.getReports(),
       ]);
+      setDataMode(modeStatus);
+      const isDemo = health?.mode?.includes('demo') || health?.mode?.includes('offline');
+
       setZones(zList);
       setSummary(sData);
       setAlerts(aList);
@@ -271,6 +275,26 @@ function App() {
             <span>LIVE SYNC ACTIVE</span>
             <small>· {lastUpdatedTime}</small>
           </div>
+          {dataMode && (
+            <div 
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '4px 10px',
+                borderRadius: '16px',
+                fontSize: '11px',
+                fontWeight: 600,
+                background: dataMode.is_real_data ? 'rgba(16, 185, 129, 0.15)' : 'rgba(56, 189, 248, 0.15)',
+                border: `1px solid ${dataMode.is_real_data ? 'rgba(16, 185, 129, 0.4)' : 'rgba(56, 189, 248, 0.4)'}`,
+                color: dataMode.is_real_data ? '#34d399' : '#38bdf8'
+              }}
+              title={dataMode.is_real_data ? 'Connected to verified live geological & meteorological streams' : 'Running calibrated demonstration scenario simulation'}
+            >
+              <Database size={12} />
+              <span>{dataMode.status_badge === 'REAL_DATA' ? '🟢 LIVE DATA' : '🔵 DEMO SCENARIO'}</span>
+            </div>
+          )}
           <button 
             className={`sync-weather-header-btn ${syncingWeather ? 'loading' : ''}`}
             onClick={handleSyncLiveWeather}

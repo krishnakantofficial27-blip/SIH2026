@@ -33,6 +33,27 @@ from .security import (
 )
 from .diagnostics import get_system_health_diagnostics, get_prometheus_metrics, increment_request_counter
 
+from .ml import (
+    validate_environmental_record, clean_and_sanitize_features, ValidationError,
+    get_spatial_cross_validation_strategy, engineer_features,
+    generate_decision_support_explanation, calculate_uncertainty_and_confidence,
+    get_multi_model_comparison_benchmark
+)
+from .risk_engine import (
+    compute_fused_risk_score, calculate_physics_factor_of_safety, 
+    FUSION_WEIGHTS, FUSION_METADATA_SCHEMA
+)
+from .community import (
+    check_report_rate_limit, detect_duplicate_report, 
+    calculate_trust_weighted_evidence, VERIFICATION_LEVELS
+)
+from .alerts import (
+    create_geofenced_alert, evaluate_alert_tier, generate_alert_dedup_hash, ALERT_TIERS
+)
+from .adapters import (
+    fetch_open_meteo_weather, get_current_data_mode_status, DataProviderStatus, DATA_MODE
+)
+
 def get_utc_now() -> datetime:
     """Return timezone-naive UTC datetime compatible with SQLite and free from Python 3.12+ deprecation."""
     return datetime.now(timezone.utc).replace(tzinfo=None)
@@ -268,14 +289,25 @@ def generate_risk_explanation(payload: dict, verified_reports: int) -> list[dict
     return factors
 
 def predict_zone_risk(payload: dict, verified_reports: int = 0):
-    vals = [payload.get(k, 0.0) for k in FEATURES]
+    clean_payload = clean_and_sanitize_features(payload)
+    vals = [clean_payload.get(k, 0.0) for k in FEATURES]
     raw_ml = float(ML_MODEL.predict([vals])[0])
+    ml_prob = max(0.0, min(1.0, raw_ml / 100.0))
+
+    slope = float(clean_payload.get("slope_deg", 25.0))
+    moist = float(clean_payload.get("soil_moisture", 0.4))
     
-    # AI + Community Risk Fusion: 5 points per verified report, capped at 15
-    community_boost = min(verified_reports * 5.0, 15.0) if verified_reports > 0 else 0.0
-    final_score = round(min(100.0, max(0.0, raw_ml + community_boost)), 1)
-    factors = generate_risk_explanation(payload, verified_reports)
+    # Run multi-criteria risk score fusion (ML 45%, Physics Fs 35%, Community 20%)
+    fusion_result = compute_fused_risk_score(
+        ml_probability=ml_prob,
+        slope_deg=slope,
+        soil_moisture=moist,
+        verified_reports_count=verified_reports
+    )
+    final_score = fusion_result["fused_risk_score"]
+    factors = generate_risk_explanation(clean_payload, verified_reports)
     
+    community_boost = fusion_result["fusion_breakdown"]["community_evidence_component"]["weighted_contribution"]
     return final_score, round(raw_ml, 1), community_boost, factors
 
 # ── National Landslide Monitored Zones (Western Ghats, Himalayas, North-East) ──
@@ -1680,5 +1712,37 @@ def get_security_audit_trail(limit: int = 50):
 def verify_audit_chain():
     increment_request_counter()
     return verify_audit_chain_integrity()
+
+# ── SIH 2026 Advanced Architecture Endpoints ──
+@app.get('/api/ml/spatial-validation', tags=['Scientific ML Validation'])
+def get_ml_spatial_holdout():
+    increment_request_counter()
+    return get_spatial_cross_validation_strategy()
+
+@app.get('/api/ml/models-comparison', tags=['Scientific ML Validation'])
+def get_ml_models_comparison():
+    increment_request_counter()
+    return get_multi_model_comparison_benchmark()
+
+@app.get('/api/risk-engine/metadata', tags=['Risk Engine & Fusion'])
+def get_risk_fusion_metadata():
+    increment_request_counter()
+    return FUSION_METADATA_SCHEMA
+
+@app.get('/api/data-mode', tags=['Data Ingestion & Provenance'])
+def get_data_mode():
+    increment_request_counter()
+    return get_current_data_mode_status()
+
+@app.get('/api/community/moderation-status', tags=['Community Intelligence'])
+def get_community_moderation_status():
+    increment_request_counter()
+    return {
+        "verification_hierarchy": VERIFICATION_LEVELS,
+        "duplicate_detection_radius_km": 0.60,
+        "rate_limiting_rule": "Maximum 3 reports per hour per IP",
+        "abuse_protection": "Unverified singletons receive 0.10 weight to prevent panic cascades."
+    }
+
 
 

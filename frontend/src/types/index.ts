@@ -440,4 +440,74 @@ export interface SystemHealthResponse {
   };
 }
 
+// ── SIH 2026 Advanced Architecture Types ──
+export interface SpatialBasin {
+  basin_id: string;
+  name: string;
+  region: string;
+  zones_count: number;
+  geological_context: string;
+}
+
+export interface SpatialHoldoutFold {
+  fold: number;
+  holdout_basin: string;
+  train_samples: number;
+  test_samples: number;
+  test_accuracy: number;
+  test_precision: number;
+  critical_class_recall: number;
+  f1_score: number;
+  roc_auc: number;
+  pr_auc: number;
+  leakage_risk: string;
+}
+
+export interface SpatialValidationStrategy {
+  validation_method: string;
+  rationale: string;
+  total_spatial_basins: number;
+  basins: SpatialBasin[];
+  evaluation_folds: SpatialHoldoutFold[];
+  aggregate_spatial_performance: {
+    mean_accuracy: number;
+    mean_precision: number;
+    mean_critical_recall: number;
+    mean_f1: number;
+    mean_roc_auc: number;
+    mean_pr_auc: number;
+    scientific_conclusion: string;
+  };
+}
+
+export interface ModelBenchmarkItem {
+  model_name: string;
+  architecture_type: string;
+  accuracy: number;
+  precision: number;
+  critical_class_recall: number;
+  f1_score: number;
+  roc_auc: number;
+  pr_auc: number;
+  brier_score: number;
+  inference_latency_ms: number;
+  selected_status: string;
+}
+
+export interface MultiModelComparison {
+  dataset: string;
+  validation_strategy: string;
+  models_evaluated: ModelBenchmarkItem[];
+  benchmark_conclusion: string;
+}
+
+export interface DataModeStatus {
+  configured_mode: 'real' | 'demo';
+  status_badge: string;
+  is_real_data: boolean;
+  cache_entries_active: number;
+  disclaimer: string;
+}
+
+
 
