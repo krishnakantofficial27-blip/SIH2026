@@ -82,19 +82,19 @@ const MapPanControl = ({
 
   useEffect(() => {
     if (route && route.length > 0) {
-      const key = `route-${route[0][0].toFixed(3)}-${route[route.length - 1][0].toFixed(3)}-${route.length}`;
+      const key = `route-${route[0][0].toFixed(2)}-${route[route.length - 1][0].toFixed(2)}-${route.length}`;
       if (key !== lastTargetRef.current) {
         lastTargetRef.current = key;
         const bounds = L.latLngBounds(route.map(p => [p[0], p[1]]));
-        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 13, duration: 1.0 });
+        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 12, duration: 0.8 });
       }
       return;
     }
     if (center) {
-      const key = `center-${center[0].toFixed(4)}-${center[1].toFixed(4)}`;
+      const key = `center-${center[0].toFixed(3)}-${center[1].toFixed(3)}`;
       if (key !== lastTargetRef.current) {
         lastTargetRef.current = key;
-        map.flyTo(center, 12, { duration: 0.9 });
+        map.flyTo(center, 12, { duration: 0.8 });
       }
       return;
     }
@@ -102,10 +102,10 @@ const MapPanControl = ({
       const key = `region-${regionView.center[0].toFixed(2)}-${regionView.center[1].toFixed(2)}-${regionView.zoom}`;
       if (key !== lastTargetRef.current) {
         lastTargetRef.current = key;
-        map.flyTo(regionView.center, regionView.zoom, { duration: 1.0 });
+        map.flyTo(regionView.center, regionView.zoom, { duration: 0.8 });
       }
     }
-  }, [center?.[0], center?.[1], route, regionView, map]);
+  }, [center?.[0], center?.[1], route, regionView?.center[0], regionView?.center[1], regionView?.zoom, map]);
 
   return null;
 };
@@ -330,16 +330,18 @@ export const RiskMap: React.FC<RiskMapProps> = ({
       </div>
 
       <div className="map-and-sidepanel-container">
-        {/* GIS Map Canvas with Pan-India center and bounds restriction */}
+        {/* GIS Map Canvas with Pan-India center and bounds restriction to prevent world looping */}
         <MapContainer
           center={[22.8, 79.5]}
           zoom={5}
-          minZoom={3}
+          minZoom={4}
+          maxBounds={[[4.0, 65.0], [38.5, 100.0]]}
+          maxBoundsViscosity={0.85}
           scrollWheelZoom={true}
           className="leaflet-map-canvas"
         >
           <MapPanControl 
-            center={selectedZone ? [selectedZone.lat, selectedZone.lng] : userLocation ? [userLocation.lat, userLocation.lng] : null} 
+            center={selectedZone ? [selectedZone.lat, selectedZone.lng] : null} 
             route={routeData?.safe_route?.route as [number, number][] | undefined}
             regionView={!selectedZone && !routeData ? regionViewTarget : null}
           />
@@ -349,6 +351,7 @@ export const RiskMap: React.FC<RiskMapProps> = ({
             key={tileStyle}
             attribution={MAP_TILES[tileStyle].attribution}
             url={MAP_TILES[tileStyle].url}
+            noWrap={true}
           />
 
           {/* User Location Marker */}
