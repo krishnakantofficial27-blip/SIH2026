@@ -311,13 +311,23 @@ function App() {
           />
         ) : (
           <>
-            {/* Top Sub-Header */}
-            <div className="hero-subhead">
-              <div className="hero-eyebrow-row">
-                <span className="eyebrow">SIH 2026 · NATIONAL MULTI-HAZARD EARLY WARNING PLATFORM</span>
-                <span className="location-pill">📍 Pan-India Landslide Network (Western Ghats, Himalayas, North-East)</span>
+            {/* SlopeSafe Command Center Hero Banner matching reference design */}
+            <div className="command-center-banner">
+              <div className="banner-left">
+                <h1 className="banner-title">
+                  SLOPE<span className="safe-highlight">SAFE</span>&nbsp;COMMAND CENTER
+                </h1>
+                <h2 className="banner-subtitle-1">
+                  National Landslide Risk Monitoring
+                </h2>
+                <p className="banner-subtitle-2">
+                  Real-time multi-sensor monitoring, predictive risk assessment and emergency decision support.
+                </p>
               </div>
-              <h1>{t('slogan')}</h1>
+              <div className="banner-right">
+                <span className="banner-tagline-line1">Safer Slopes</span>
+                <span className="banner-tagline-line2">Stronger Communities</span>
+              </div>
             </div>
 
             {/* Regional Hazard Summary Hero */}
