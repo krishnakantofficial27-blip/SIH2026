@@ -2413,6 +2413,117 @@ textarea {
   color: var(--text-primary);
 }
 
+.factors-breakdown-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.factor-row-item {
+  background: rgba(30, 41, 59, 0.6);
+  border-left: 3px solid #64748b;
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.factor-row-item.critical {
+  border-left-color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.factor-row-item.high {
+  border-left-color: #f97316;
+  background: rgba(249, 115, 22, 0.08);
+}
+
+.factor-row-item.moderate {
+  border-left-color: #eab308;
+  background: rgba(234, 179, 8, 0.08);
+}
+
+.factor-row-item.low {
+  border-left-color: #22c55e;
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.factor-row-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.factor-row-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.factor-row-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.factor-row-badge.critical { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+.factor-row-badge.high { background: rgba(249, 115, 22, 0.2); color: #f97316; }
+.factor-row-badge.moderate { background: rgba(234, 179, 8, 0.2); color: #eab308; }
+.factor-row-badge.low { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+
+.factor-row-metric {
+  font-size: 11px;
+  color: #38bdf8;
+  font-weight: 600;
+  display: block;
+}
+
+.factor-row-explanation {
+  font-size: 11px;
+  color: #94a3b8;
+  margin: 2px 0 0;
+  line-height: 1.4;
+}
+
+.ml-recommendation-box {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95));
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-top: 12px;
+}
+
+.rec-box-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #38bdf8;
+  margin-bottom: 4px;
+}
+
+.rec-icon {
+  color: #38bdf8;
+}
+
+.ml-recommendation-box p {
+  font-size: 12px;
+  color: #e2e8f0;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.target-zone-chip {
+  font-size: 11px;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 2px 8px;
+  border-radius: 12px;
+  margin-top: 4px;
+}
+
+
 .prediction-history {
   margin-top: 16px;
 }
