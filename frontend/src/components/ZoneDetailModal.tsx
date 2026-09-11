@@ -10,6 +10,7 @@ interface ZoneDetailModalProps {
   onClose: () => void;
   onNavigateToRoute: () => void;
   onNavigateToReport: () => void;
+  onNavigateToWeather?: () => void;
 }
 
 const RISK_BADGE_STYLE: Record<string, string> = {
@@ -24,6 +25,7 @@ export const ZoneDetailModal: React.FC<ZoneDetailModalProps> = ({
   onClose,
   onNavigateToRoute,
   onNavigateToReport,
+  onNavigateToWeather,
 }) => {
   if (!zone) return null;
 
@@ -149,6 +151,11 @@ export const ZoneDetailModal: React.FC<ZoneDetailModalProps> = ({
           <button className="btn-secondary" onClick={onNavigateToRoute}>
             <Route size={16} /> Find Safe Route Bypassing This Zone
           </button>
+          {onNavigateToWeather && (
+            <button className="btn-secondary" onClick={onNavigateToWeather} style={{ borderColor: 'rgba(56, 189, 248, 0.4)', color: '#38bdf8' }}>
+              <CloudRain size={16} /> Live Rain & Weather Forecast
+            </button>
+          )}
           <button className="btn-primary" onClick={onNavigateToReport}>
             <Send size={16} /> Submit Ground Hazard Report Here
           </button>

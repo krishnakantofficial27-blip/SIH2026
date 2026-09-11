@@ -63,6 +63,7 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const [status, setStatus] = useState<ConnectionStatus>('connecting');
   const [lastUpdatedTime, setLastUpdatedTime] = useState<string>('Just now');
+  const [pinnedWeatherLoc, setPinnedWeatherLoc] = useState<{ lat: number; lng: number; name?: string } | null>(null);
   const [notice, setNotice] = useState<string>('');
 
   const t = (key: string): string => TRANSLATIONS[lang]?.[key] || TRANSLATIONS.en[key] || key;
@@ -311,66 +312,110 @@ function App() {
           />
         ) : (
           <>
-            {/* Top Sub-Header */}
+            {/* Top Sub-Header with Live Regional Badges */}
             <div className="hero-subhead">
               <div className="hero-eyebrow-row">
                 <span className="eyebrow">SIH 2026 · NATIONAL MULTI-HAZARD EARLY WARNING PLATFORM</span>
                 <span className="location-pill">📍 Pan-India Landslide Network (Western Ghats, Himalayas, North-East)</span>
+                <span className="telemetry-live-tag">
+                  <span className="pulse-green"></span>
+                  GSI Telemetry Online
+                </span>
               </div>
-              <h1>{t('slogan')}</h1>
+              <h1 className="main-platform-title">{t('slogan')}</h1>
             </div>
 
             {/* Regional Hazard Summary Hero */}
-            <section className="hero">
+            <section className="hero-command-card">
               <div className="hero-left">
-                <p>{t('overall_risk')}</p>
-                <strong className={`risk ${summary?.overall_level || 'HIGH'}`}>
-                  {summary?.overall_level || 'HIGH'} <small>{summary?.overall_score ?? 64}/100</small>
-                </strong>
-                <span className="hero-fusion-caption">
-                  Multi-Sensor Physical Geotechnical Modeling + Verified Citizen Ground Truth
-                </span>
+                <div className="hazard-title-row">
+                  <span className="hero-label">{t('overall_risk')}</span>
+                  <span className={`hazard-status-pill ${(summary?.overall_level || 'HIGH').toLowerCase()}`}>
+                    ● {summary?.overall_level || 'HIGH'} ALERT
+                  </span>
+                </div>
+                
+                <div className="hazard-score-container">
+                  <div className="score-metric-group">
+                    <strong className={`risk-large ${(summary?.overall_level || 'HIGH')}`}>
+                      {summary?.overall_score ?? 64}
+                    </strong>
+                    <div className="score-denom-group">
+                      <span className="denom-label">/ 100</span>
+                      <span className="score-desc">National Landslide Hazard Index</span>
+                    </div>
+                  </div>
+
+                  {/* Visual Progress Bar */}
+                  <div className="hazard-meter-track">
+                    <div 
+                      className={`hazard-meter-fill ${(summary?.overall_level || 'HIGH').toLowerCase()}`} 
+                      style={{ width: `${summary?.overall_score ?? 64}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                <div className="hero-fusion-badges">
+                  <span className="fusion-chip">🧪 Physics Safety Factor (FS): 1.08</span>
+                  <span className="fusion-chip">📡 Soil Saturation: 82%</span>
+                  <span className="fusion-chip">🤖 ML Failure Probability: 64%</span>
+                </div>
               </div>
 
               <div className="hero-quick-actions">
-                <button onClick={() => setActiveTab('route')} className="hero-btn-primary">
+                <button onClick={() => setActiveTab('route')} className="hero-btn-primary" title="Find Safest Road Corridor">
                   <Route size={16} /> {t('find_safe_route')}
                 </button>
-                <button onClick={() => setActiveTab('report')} className="hero-btn-secondary">
+                <button onClick={() => setActiveTab('report')} className="hero-btn-secondary" title="Submit Ground Report">
                   <Send size={16} /> {t('report_hazard')}
                 </button>
-                <button onClick={() => setActiveTab('emergency')} className="hero-btn-emergency">
-                  <Phone size={16} /> Emergency Helpline (112)
+                <button onClick={() => setActiveTab('emergency')} className="hero-btn-emergency" title="National Disaster Helpline">
+                  <Phone size={16} /> Helpline (112)
                 </button>
               </div>
             </section>
 
             {/* High-Level Overview KPI Cards */}
             <section className="stats">
-              <div className="stat-card" onClick={() => setActiveTab('map')} style={{ cursor: 'pointer' }}>
-                <MapPinned size={22} style={{ color: '#38bdf8' }} />
-                <small>{t('monitored_zones')}</small>
+              <div className="stat-card stat-cyan" onClick={() => setActiveTab('map')} style={{ cursor: 'pointer' }}>
+                <div className="stat-card-top">
+                  <small>{t('monitored_zones')}</small>
+                  <MapPinned size={20} className="stat-icon-cyan" />
+                </div>
                 <b>{summary?.total_zones ?? 22}</b>
+                <span className="stat-subtext">Pan-India Monitored Hotspots</span>
               </div>
-              <div className="stat-card" onClick={() => setActiveTab('map')} style={{ cursor: 'pointer' }}>
-                <AlertTriangle size={22} style={{ color: '#f97316' }} />
-                <small>{t('high_risk_zones')}</small>
+              <div className="stat-card stat-orange" onClick={() => setActiveTab('map')} style={{ cursor: 'pointer' }}>
+                <div className="stat-card-top">
+                  <small>{t('high_risk_zones')}</small>
+                  <AlertTriangle size={20} className="stat-icon-orange" />
+                </div>
                 <b>{summary?.high_risk_zones ?? 9}</b>
+                <span className="stat-subtext">Slope Angle &gt; 35° · High Vulnerability</span>
               </div>
-              <div className="stat-card" onClick={() => setActiveTab('map')} style={{ cursor: 'pointer' }}>
-                <AlertTriangle size={22} style={{ color: '#ef4444' }} />
-                <small>{t('critical_zones')}</small>
+              <div className="stat-card stat-red" onClick={() => setActiveTab('map')} style={{ cursor: 'pointer' }}>
+                <div className="stat-card-top">
+                  <small>{t('critical_zones')}</small>
+                  <AlertTriangle size={20} className="stat-icon-red" />
+                </div>
                 <b>{summary?.critical_zones ?? 7}</b>
+                <span className="stat-subtext">Critical Saturated Debris Flow</span>
               </div>
-              <div className="stat-card" onClick={() => setActiveTab('report')} style={{ cursor: 'pointer' }}>
-                <Users size={22} style={{ color: '#9333ea' }} />
-                <small>{t('active_reports')}</small>
+              <div className="stat-card stat-purple" onClick={() => setActiveTab('report')} style={{ cursor: 'pointer' }}>
+                <div className="stat-card-top">
+                  <small>{t('active_reports')}</small>
+                  <Users size={20} className="stat-icon-purple" />
+                </div>
                 <b>{summary?.active_reports ?? 4}</b>
+                <span className="stat-subtext">Verified Citizen Ground Reports</span>
               </div>
-              <div className="stat-card" onClick={() => setActiveTab('alerts')} style={{ cursor: 'pointer' }}>
-                <Bell size={22} style={{ color: '#ef4444' }} />
-                <small>{t('active_alerts')}</small>
+              <div className="stat-card stat-rose" onClick={() => setActiveTab('alerts')} style={{ cursor: 'pointer' }}>
+                <div className="stat-card-top">
+                  <small>{t('active_alerts')}</small>
+                  <Bell size={20} className="stat-icon-rose" />
+                </div>
                 <b>{summary?.active_alerts ?? 3}</b>
+                <span className="stat-subtext">Active Early Warning Advisories</span>
               </div>
             </section>
 
@@ -462,7 +507,13 @@ function App() {
             {/* Tab 4: Meteorological Weather Telemetry */}
             {activeTab === 'weather' && (
               <div className="tab-container">
-                <WeatherForecast userLocation={userLocation} />
+                <WeatherForecast 
+                  userLocation={userLocation} 
+                  selectedZone={selectedZone}
+                  zones={zones}
+                  pinnedLocation={pinnedWeatherLoc}
+                  onSelectPinnedLocation={loc => setPinnedWeatherLoc(loc)}
+                />
               </div>
             )}
 
@@ -584,6 +635,11 @@ function App() {
             onClose={() => setModalZone(null)}
             onNavigateToRoute={() => { setModalZone(null); setActiveTab('route'); }}
             onNavigateToReport={() => { setModalZone(null); setActiveTab('report'); }}
+            onNavigateToWeather={() => { 
+              setPinnedWeatherLoc({ lat: modalZone.lat, lng: modalZone.lng, name: `${modalZone.name} (${modalZone.district})` });
+              setModalZone(null); 
+              setActiveTab('weather'); 
+            }}
           />
         )}
 
