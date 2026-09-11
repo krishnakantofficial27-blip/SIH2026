@@ -5,7 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import { Zone, CommunityReport, MapLayerState, SafeRouteResponse, RiskLevel } from '../types';
 import { 
   Layers, MapPin, Eye, Globe, Filter, AlertTriangle, ShieldCheck, 
-  CloudRain, Mountain, Droplets, Compass, X, Route, Send, FileText, Maximize2 
+  CloudRain, Mountain, Droplets, Compass, X, Route, Send, FileText
 } from 'lucide-react';
 
 interface RiskMapProps {
@@ -209,74 +209,16 @@ export const RiskMap: React.FC<RiskMapProps> = ({
   });
 
   return (
-    <div className="risk-map-wrapper command-panel">
-      {/* 1. Panel Header matching Section 9 */}
-      <div className="cmd-map-panel-header">
-        <div className="cmd-map-title-group">
-          <div className="cmd-map-title-icon"><Layers size={18} /></div>
-          <div>
-            <h3 className="cmd-map-main-title">LIVE RISK MAP</h3>
-            <p className="cmd-map-subtitle">National Multi-Region Network</p>
-          </div>
-        </div>
-
-        <div className="cmd-map-header-actions">
-          {/* Basemap Switcher */}
-          <div className="cmd-tile-switcher">
-            {(['terrain', 'satellite', 'standard'] as const).map(styleKey => (
-              <button
-                key={styleKey}
-                className={`cmd-tile-btn ${tileStyle === styleKey ? 'active' : ''}`}
-                onClick={() => setTileStyle(styleKey)}
-                title={`Switch basemap to ${MAP_TILES[styleKey].name}`}
-              >
-                {MAP_TILES[styleKey].name}
-              </button>
-            ))}
-          </div>
-
-          {/* Fullscreen Button */}
-          <button 
-            className="cmd-map-action-btn"
-            onClick={() => {
-              const el = document.querySelector('.risk-map-wrapper');
-              if (el) {
-                if (document.fullscreenElement) {
-                  document.exitFullscreen().catch(() => {});
-                } else {
-                  el.requestFullscreen().catch(() => {});
-                }
-              }
-            }}
-            title="Toggle Map Fullscreen"
-          >
-            <Maximize2 size={13} />
-            <span>View Fullscreen</span>
-          </button>
-
-          {/* My Location GPS */}
-          {onFetchLocation && (
-            <button 
-              className={`cmd-map-action-btn ${userLocation ? 'active' : ''}`} 
-              onClick={onFetchLocation}
-              title="Acquire live GPS coordinates"
-            >
-              <MapPin size={13} />
-              <span>{userLocation ? 'GPS Fixed' : 'Locate Me'}</span>
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* 2. Compact Enterprise Filter Toolbar */}
-      <div className="cmd-map-filter-toolbar">
-        {/* Region Filter */}
-        <div className="cmd-filter-item">
-          <label className="cmd-filter-label"><Globe size={13} /> Region</label>
+    <div className="risk-map-wrapper">
+      {/* Top Map Control Bar */}
+      <div className="map-toolbar">
+        {/* Region Switcher */}
+        <div className="filter-group-inline">
+          <span className="toolbar-title"><Globe size={14} /> Region:</span>
           <select 
             value={regionFilter} 
             onChange={e => handleRegionChange(e.target.value)}
-            className="cmd-enterprise-select"
+            className="filter-select-mini"
           >
             {Object.entries(REGION_PRESETS).map(([k, v]) => (
               <option key={k} value={k}>{v.name}</option>
@@ -285,15 +227,15 @@ export const RiskMap: React.FC<RiskMapProps> = ({
         </div>
 
         {/* State Filter */}
-        <div className="cmd-filter-item">
-          <label className="cmd-filter-label"><Compass size={13} /> State</label>
+        <div className="filter-group-inline">
+          <span className="toolbar-title"><Compass size={14} /> State:</span>
           <select 
             value={stateFilter} 
             onChange={e => {
               setStateFilter(e.target.value);
               setDistrictFilter('ALL');
             }}
-            className="cmd-enterprise-select"
+            className="filter-select-mini"
           >
             {states.map(s => (
               <option key={s} value={s}>{s === 'ALL' ? 'All States' : s}</option>
@@ -301,13 +243,13 @@ export const RiskMap: React.FC<RiskMapProps> = ({
           </select>
         </div>
 
-        {/* District Filter */}
-        <div className="cmd-filter-item">
-          <label className="cmd-filter-label"><MapPin size={13} /> District</label>
+        {/* District Filter Dropdown */}
+        <div className="filter-group-inline">
+          <span className="toolbar-title"><MapPin size={14} /> District:</span>
           <select 
             value={districtFilter} 
             onChange={e => setDistrictFilter(e.target.value)}
-            className="cmd-enterprise-select"
+            className="filter-select-mini"
           >
             {districts.map(d => (
               <option key={d} value={d}>{d === 'ALL' ? 'All Districts' : d}</option>
@@ -315,60 +257,76 @@ export const RiskMap: React.FC<RiskMapProps> = ({
           </select>
         </div>
 
-        {/* Risk Level Filter (Enterprise Select) */}
-        <div className="cmd-filter-item">
-          <label className="cmd-filter-label"><Filter size={13} /> Risk Level</label>
-          <select 
-            value={severityFilter} 
-            onChange={e => setSeverityFilter(e.target.value as any)}
-            className="cmd-enterprise-select"
-          >
-            <option value="ALL">All Risk Levels</option>
-            <option value="CRITICAL">Critical Hazard</option>
-            <option value="HIGH">High Risk</option>
-            <option value="MODERATE">Moderate Risk</option>
-            <option value="LOW">Low Risk</option>
-          </select>
+        {/* Risk Level Filter */}
+        <div className="filter-group-inline">
+          <span className="toolbar-title"><Filter size={14} /> Risk:</span>
+          {(['ALL', 'CRITICAL', 'HIGH', 'MODERATE', 'LOW'] as const).map(sev => (
+            <button
+              key={sev}
+              className={`filter-chip-mini ${severityFilter === sev ? 'active' : ''}`}
+              onClick={() => setSeverityFilter(sev)}
+            >
+              {sev === 'ALL' ? 'All' : sev}
+            </button>
+          ))}
         </div>
-      </div>
 
-      {/* 3. Layer Toggles Strip */}
-      <div className="cmd-map-layers-strip">
-        <label className="cmd-layer-checkbox">
-          <input
-            type="checkbox"
-            checked={layers.riskZones}
-            onChange={() => toggleLayer('riskZones')}
-          />
-          <span>Risk Hotspots ({filteredZones.length})</span>
-        </label>
+        {/* Tile Switcher */}
+        <div className="map-tile-switcher">
+          {(['terrain', 'satellite', 'standard'] as const).map(styleKey => (
+            <button
+              key={styleKey}
+              className={`style-btn ${tileStyle === styleKey ? 'active' : ''}`}
+              onClick={() => setTileStyle(styleKey)}
+            >
+              {MAP_TILES[styleKey].name}
+            </button>
+          ))}
+        </div>
 
-        <label className="cmd-layer-checkbox">
-          <input
-            type="checkbox"
-            checked={layers.communityReports}
-            onChange={() => toggleLayer('communityReports')}
-          />
-          <span>Citizen Reports ({filteredReports.length})</span>
-        </label>
+        {/* Layer Toggles */}
+        <div className="layer-toggles">
+          <label className="toggle-btn">
+            <input
+              type="checkbox"
+              checked={layers.riskZones}
+              onChange={() => toggleLayer('riskZones')}
+            />
+            Risk Hotspots ({filteredZones.length})
+          </label>
+          <label className="toggle-btn">
+            <input
+              type="checkbox"
+              checked={layers.communityReports}
+              onChange={() => toggleLayer('communityReports')}
+            />
+            Reports ({filteredReports.length})
+          </label>
+          <label className="toggle-btn">
+            <input
+              type="checkbox"
+              checked={layers.historicalLandslides}
+              onChange={() => toggleLayer('historicalLandslides')}
+            />
+            GSI Historical ({filteredHistory.length})
+          </label>
+          <label className="toggle-btn">
+            <input
+              type="checkbox"
+              checked={layers.rainfallRadar}
+              onChange={() => toggleLayer('rainfallRadar')}
+            />
+            Rainfall Radar
+          </label>
+        </div>
 
-        <label className="cmd-layer-checkbox">
-          <input
-            type="checkbox"
-            checked={layers.historicalLandslides}
-            onChange={() => toggleLayer('historicalLandslides')}
-          />
-          <span>Historical Landslides ({filteredHistory.length})</span>
-        </label>
-
-        <label className="cmd-layer-checkbox">
-          <input
-            type="checkbox"
-            checked={layers.rainfallRadar}
-            onChange={() => toggleLayer('rainfallRadar')}
-          />
-          <span>Rainfall Radar</span>
-        </label>
+        <div className="location-actions">
+          {onFetchLocation && (
+            <button className="my-location-btn" onClick={onFetchLocation}>
+              <MapPin size={14} /> {userLocation ? 'GPS Active' : '📍 Locate Me'}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="map-and-sidepanel-container">
@@ -537,29 +495,6 @@ export const RiskMap: React.FC<RiskMapProps> = ({
             </>
           )}
         </MapContainer>
-
-        {/* Command Center Professional Map Legend Overlay */}
-        <div className="cmd-map-legend-overlay">
-          <span className="legend-title">RISK SEVERITY</span>
-          <div className="legend-items">
-            <div className="legend-item">
-              <span className="legend-dot dot-critical"></span>
-              <span>CRITICAL</span>
-            </div>
-            <div className="legend-item">
-              <span className="legend-dot dot-high"></span>
-              <span>HIGH</span>
-            </div>
-            <div className="legend-item">
-              <span className="legend-dot dot-moderate"></span>
-              <span>MODERATE</span>
-            </div>
-            <div className="legend-item">
-              <span className="legend-dot dot-low"></span>
-              <span>LOW</span>
-            </div>
-          </div>
-        </div>
 
         {/* Selected Zone Side Panel */}
         {selectedZone && (
