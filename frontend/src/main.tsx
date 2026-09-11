@@ -46,8 +46,29 @@ type Tab =
 
 type ConnectionStatus = 'connecting' | 'connected' | 'demo-fallback';
 
+function parseTabFromHash(): Tab {
+  if (typeof window === 'undefined') return 'dashboard';
+  const rawHash = decodeURIComponent(window.location.hash.replace(/^#\/?/, '')).trim().toLowerCase();
+  if (!rawHash) return 'dashboard';
+  if (rawHash.includes('risk') || rawHash.includes('map')) return 'map';
+  if (rawHash.includes('sensor')) return 'sensors';
+  if (rawHash.includes('weather')) return 'weather';
+  if (rawHash.includes('ml') || rawHash.includes('predict')) return 'ml';
+  if (rawHash.includes('analytic')) return 'analytics';
+  if (rawHash.includes('route')) return 'route';
+  if (rawHash.includes('evacuat')) return 'evacuation';
+  if (rawHash.includes('emergenc') || rawHash.includes('help') || rawHash.includes('112')) return 'emergency';
+  if (rawHash.includes('report')) return 'report';
+  if (rawHash.includes('alert')) return 'alerts';
+  if (rawHash.includes('hist')) return 'history';
+  if (rawHash.includes('method')) return 'methodology';
+  if (rawHash.includes('author')) return 'authority';
+  if (rawHash.includes('login')) return 'login';
+  return 'dashboard';
+}
+
 function App() {
-  const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+  const [activeTab, setActiveTab] = useState<Tab>(parseTabFromHash);
   const [role, setRole] = useState<'Resident' | 'Authority'>('Resident');
   const [lang, setLang] = useState<Language>('en');
   const [currentUser, setCurrentUser] = useState<{ name: string; role: 'Resident' | 'Authority'; email: string } | null>(null);
@@ -66,6 +87,15 @@ function App() {
   const [notice, setNotice] = useState<string>('');
 
   const t = (key: string): string => TRANSLATIONS[lang]?.[key] || TRANSLATIONS.en[key] || key;
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const targetTab = parseTabFromHash();
+      setActiveTab(targetTab);
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   const loadData = useCallback(async () => {
     try {
@@ -107,13 +137,22 @@ function App() {
   const handleTabClick = (tab: Tab) => {
     setActiveTab(tab);
     setSidebarOpen(false);
+    if (tab === 'dashboard') {
+      try {
+        history.replaceState(null, '', window.location.pathname);
+      } catch {
+        window.location.hash = '';
+      }
+    } else {
+      window.location.hash = tab;
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleLoginSuccess = (user: { name: string; role: 'Resident' | 'Authority'; email: string }) => {
     setCurrentUser(user);
     setRole(user.role);
-    setActiveTab(user.role === 'Authority' ? 'authority' : 'dashboard');
+    handleTabClick(user.role === 'Authority' ? 'authority' : 'dashboard');
   };
 
   const handleFetchLocation = () => {
@@ -139,10 +178,10 @@ function App() {
       <header className="top-global-header">
         <div className="header-left">
           <button className="hamburger-btn" onClick={() => setSidebarOpen(!sidebarOpen)} title="Toggle Navigation Menu">
-            {sidebarOpen ? <X size={22} /> : <Menu size={22} />}
+            {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
           <div className="global-brand" onClick={() => handleTabClick('dashboard')}>
-            <ShieldCheck size={28} className="brand-icon" />
+            <ShieldCheck size={26} className="brand-icon" />
             <div className="brand-titles">
               <span className="brand-name">SLOPE<strong>SAFE</strong></span>
               <span className="brand-region-badge">PAN-INDIA EWS</span>
@@ -150,8 +189,8 @@ function App() {
           </div>
         </div>
 
-        {/* System Telemetry Badges */}
-        <div className="header-center-badges">
+        {/* System Telemetry Badges (Desktop Only) */}
+        <div className="header-center-badges desktop-only">
           <div className="live-status-pill">
             <span className="pulse-green"></span>
             <span>{t('data_live')}</span>
@@ -166,10 +205,10 @@ function App() {
         <div className="header-right">
           {/* Language Selector */}
           <div className="lang-dropdown">
-            <Globe size={15} />
+            <Globe size={14} />
             <select value={lang} onChange={e => setLang(e.target.value as Language)}>
-              <option value="en">English</option>
-              <option value="hi">हिंदी (Hindi)</option>
+              <option value="en">EN</option>
+              <option value="hi">HI</option>
             </select>
           </div>
 
@@ -186,24 +225,39 @@ function App() {
           {/* User Auth Chip */}
           {currentUser ? (
             <div className="user-profile-chip">
-              <UserCheck size={16} />
-              <span>{currentUser.name.split(' ')[0]}</span>
+              <UserCheck size={14} />
+              <span className="user-chip-name">{currentUser.name.split(' ')[0]}</span>
               <button className="chip-logout" onClick={() => setCurrentUser(null)} title="Sign Out">
                 <LogOut size={13} />
               </button>
             </div>
           ) : (
             <button className="header-login-btn" onClick={() => handleTabClick('login')}>
-              <LogIn size={15} /> {t('login_portal')}
+              <LogIn size={14} /> <span className="login-btn-text">{t('login_portal')}</span>
             </button>
           )}
 
           {/* Judge Simulation Flow Button */}
           <button className="scenario-btn highlight" onClick={() => setShowSimModal(true)}>
-            <Play size={15} /> {t('run_simulation')}
+            <Play size={14} /> <span className="sim-btn-full">{t('run_simulation')}</span><span className="sim-btn-short">Demo</span>
           </button>
         </div>
       </header>
+
+      {/* Mobile Telemetry Sub-Bar (Clean single row on phones) */}
+      <div className="mobile-telemetry-strip mobile-only">
+        <div className="m-tele-item live">
+          <span className="pulse-green"></span>
+          <span>{t('data_live')} ({lastUpdatedTime})</span>
+        </div>
+        <div className="m-tele-item demo">
+          <Sparkles size={11} />
+          <span>DEMO</span>
+        </div>
+        <div className="m-tele-item count">
+          <span>📍 22 Zones</span>
+        </div>
+      </div>
 
       {/* Backdrop */}
       {sidebarOpen && <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)}></div>}
@@ -311,68 +365,88 @@ function App() {
           />
         ) : (
           <>
-            {/* Top Sub-Header */}
-            <div className="hero-subhead">
-              <div className="hero-eyebrow-row">
-                <span className="eyebrow">SIH 2026 · NATIONAL MULTI-HAZARD EARLY WARNING PLATFORM</span>
-                <span className="location-pill">📍 Pan-India Landslide Network (Western Ghats, Himalayas, North-East)</span>
-              </div>
-              <h1>{t('slogan')}</h1>
-            </div>
+            {/* If on Dashboard, show full Hero & Stats Overview */}
+            {activeTab === 'dashboard' ? (
+              <>
+                <div className="hero-subhead">
+                  <div className="hero-eyebrow-row">
+                    <span className="eyebrow">SIH 2026 · NATIONAL MULTI-HAZARD EARLY WARNING PLATFORM</span>
+                    <span className="location-pill">📍 Pan-India Landslide Network (Western Ghats, Himalayas, North-East)</span>
+                  </div>
+                  <h1>{t('slogan')}</h1>
+                </div>
 
-            {/* Regional Hazard Summary Hero */}
-            <section className="hero">
-              <div className="hero-left">
-                <p>{t('overall_risk')}</p>
-                <strong className={`risk ${summary?.overall_level || 'HIGH'}`}>
-                  {summary?.overall_level || 'HIGH'} <small>{summary?.overall_score ?? 64}/100</small>
-                </strong>
-                <span className="hero-fusion-caption">
-                  Multi-Sensor Physical Geotechnical Modeling + Verified Citizen Ground Truth
-                </span>
-              </div>
+                {/* Regional Hazard Summary Hero */}
+                <section className="hero">
+                  <div className="hero-left">
+                    <p>{t('overall_risk')}</p>
+                    <strong className={`risk ${summary?.overall_level || 'HIGH'}`}>
+                      {summary?.overall_level || 'HIGH'} <small>{summary?.overall_score ?? 64}/100</small>
+                    </strong>
+                    <span className="hero-fusion-caption">
+                      Multi-Sensor Physical Geotechnical Modeling + Verified Citizen Ground Truth
+                    </span>
+                  </div>
 
-              <div className="hero-quick-actions">
-                <button onClick={() => setActiveTab('route')} className="hero-btn-primary">
-                  <Route size={16} /> {t('find_safe_route')}
-                </button>
-                <button onClick={() => setActiveTab('report')} className="hero-btn-secondary">
-                  <Send size={16} /> {t('report_hazard')}
-                </button>
-                <button onClick={() => setActiveTab('emergency')} className="hero-btn-emergency">
-                  <Phone size={16} /> Emergency Helpline (112)
-                </button>
-              </div>
-            </section>
+                  <div className="hero-quick-actions">
+                    <button onClick={() => handleTabClick('route')} className="hero-btn-primary">
+                      <Route size={16} /> {t('find_safe_route')}
+                    </button>
+                    <button onClick={() => handleTabClick('report')} className="hero-btn-secondary">
+                      <Send size={16} /> {t('report_hazard')}
+                    </button>
+                    <button onClick={() => handleTabClick('emergency')} className="hero-btn-emergency">
+                      <Phone size={16} /> Emergency Helpline (112)
+                    </button>
+                  </div>
+                </section>
 
-            {/* High-Level Overview KPI Cards */}
-            <section className="stats">
-              <div className="stat-card" onClick={() => setActiveTab('map')} style={{ cursor: 'pointer' }}>
-                <MapPinned size={22} style={{ color: '#38bdf8' }} />
-                <small>{t('monitored_zones')}</small>
-                <b>{summary?.total_zones ?? 22}</b>
+                {/* High-Level Overview KPI Cards */}
+                <section className="stats">
+                  <div className="stat-card" onClick={() => handleTabClick('map')} style={{ cursor: 'pointer' }}>
+                    <MapPinned size={22} style={{ color: '#38bdf8' }} />
+                    <small>{t('monitored_zones')}</small>
+                    <b>{summary?.total_zones ?? 22}</b>
+                  </div>
+                  <div className="stat-card" onClick={() => handleTabClick('map')} style={{ cursor: 'pointer' }}>
+                    <AlertTriangle size={22} style={{ color: '#f97316' }} />
+                    <small>{t('high_risk_zones')}</small>
+                    <b>{summary?.high_risk_zones ?? 9}</b>
+                  </div>
+                  <div className="stat-card" onClick={() => handleTabClick('map')} style={{ cursor: 'pointer' }}>
+                    <AlertTriangle size={22} style={{ color: '#ef4444' }} />
+                    <small>{t('critical_zones')}</small>
+                    <b>{summary?.critical_zones ?? 7}</b>
+                  </div>
+                  <div className="stat-card" onClick={() => handleTabClick('report')} style={{ cursor: 'pointer' }}>
+                    <Users size={22} style={{ color: '#9333ea' }} />
+                    <small>{t('active_reports')}</small>
+                    <b>{summary?.active_reports ?? 4}</b>
+                  </div>
+                  <div className="stat-card" onClick={() => handleTabClick('alerts')} style={{ cursor: 'pointer' }}>
+                    <Bell size={22} style={{ color: '#ef4444' }} />
+                    <small>{t('active_alerts')}</small>
+                    <b>{summary?.active_alerts ?? 3}</b>
+                  </div>
+                </section>
+              </>
+            ) : (
+              <div className="tab-breadcrumb-bar">
+                <div className="tab-breadcrumb-left">
+                  <button className="breadcrumb-btn" onClick={() => handleTabClick('dashboard')}>
+                    ← {t('dashboard')}
+                  </button>
+                  <span className="breadcrumb-sep">/</span>
+                  <h2 className="breadcrumb-title">{t(activeTab) || activeTab}</h2>
+                </div>
+                <div className="tab-breadcrumb-actions">
+                  <span className="breadcrumb-badge">📍 22 Pan-India Monitored Zones</span>
+                  <button onClick={() => setShowSimModal(true)} className="breadcrumb-sim-btn">
+                    <Play size={13} /> {t('run_simulation')}
+                  </button>
+                </div>
               </div>
-              <div className="stat-card" onClick={() => setActiveTab('map')} style={{ cursor: 'pointer' }}>
-                <AlertTriangle size={22} style={{ color: '#f97316' }} />
-                <small>{t('high_risk_zones')}</small>
-                <b>{summary?.high_risk_zones ?? 9}</b>
-              </div>
-              <div className="stat-card" onClick={() => setActiveTab('map')} style={{ cursor: 'pointer' }}>
-                <AlertTriangle size={22} style={{ color: '#ef4444' }} />
-                <small>{t('critical_zones')}</small>
-                <b>{summary?.critical_zones ?? 7}</b>
-              </div>
-              <div className="stat-card" onClick={() => setActiveTab('report')} style={{ cursor: 'pointer' }}>
-                <Users size={22} style={{ color: '#9333ea' }} />
-                <small>{t('active_reports')}</small>
-                <b>{summary?.active_reports ?? 4}</b>
-              </div>
-              <div className="stat-card" onClick={() => setActiveTab('alerts')} style={{ cursor: 'pointer' }}>
-                <Bell size={22} style={{ color: '#ef4444' }} />
-                <small>{t('active_alerts')}</small>
-                <b>{summary?.active_alerts ?? 3}</b>
-              </div>
-            </section>
+            )}
 
             {/* Tab 1: Dashboard View */}
             {activeTab === 'dashboard' && (
@@ -607,6 +681,45 @@ function App() {
           </div>
         </footer>
       </main>
+
+      {/* Mobile Sticky Bottom Navigation Bar (Active on Phones <= 768px) */}
+      <nav className="mobile-bottom-nav mobile-only">
+        <button 
+          className={`mob-nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
+          onClick={() => handleTabClick('dashboard')}
+        >
+          <MapPinned size={19} />
+          <span>Overview</span>
+        </button>
+        <button 
+          className={`mob-nav-item ${activeTab === 'map' ? 'active' : ''}`}
+          onClick={() => handleTabClick('map')}
+        >
+          <Layers size={19} />
+          <span>Risk Map</span>
+        </button>
+        <button 
+          className={`mob-nav-item ${activeTab === 'route' ? 'active' : ''}`}
+          onClick={() => handleTabClick('route')}
+        >
+          <Route size={19} />
+          <span>Safe Route</span>
+        </button>
+        <button 
+          className={`mob-nav-item ${activeTab === 'emergency' ? 'active' : ''}`}
+          onClick={() => handleTabClick('emergency')}
+        >
+          <Phone size={19} />
+          <span>Help 112</span>
+        </button>
+        <button 
+          className={`mob-nav-item ${sidebarOpen ? 'active' : ''}`}
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+        >
+          <Menu size={19} />
+          <span>Menu</span>
+        </button>
+      </nav>
     </div>
   );
 }
