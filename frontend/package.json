@@ -1,1 +1,28 @@
-{"scripts":{"dev":"vite","build":"tsc -b && vite build","test":"vitest run"},"dependencies":{"@vitejs/plugin-react":"latest","axios":"latest","leaflet":"latest","lucide-react":"latest","react":"latest","react-dom":"latest","react-leaflet":"latest","recharts":"latest"},"devDependencies":{"typescript":"latest","vite":"latest","vitest":"latest","@types/react":"latest","@types/react-dom":"latest","@types/leaflet":"latest"}}
+{
+  "name": "slopesafe-frontend",
+  "version": "1.4.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "latest",
+    "axios": "latest",
+    "leaflet": "latest",
+    "lucide-react": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "react-leaflet": "latest",
+    "recharts": "latest"
+  },
+  "devDependencies": {
+    "@types/leaflet": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "typescript": "latest",
+    "vite": "latest",
+    "vitest": "latest"
+  }
+}
