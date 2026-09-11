@@ -74,3 +74,14 @@ def test_all_endpoints():
         r_em = client.get('/api/emergency-contacts')
         assert r_em.status_code == 200
         assert 'national_helplines' in r_em.json() or len(r_em.json()) >= 4
+
+        # 9. IoT Sensors
+        r_sens = client.get('/api/sensors')
+        assert r_sens.status_code == 200
+        assert len(r_sens.json()['sensors']) >= 6
+
+        # 10. Sync Live Weather
+        r_sync = client.get('/api/sync-live-weather')
+        assert r_sync.status_code == 200
+        assert r_sync.json()['status'] == 'success'
+

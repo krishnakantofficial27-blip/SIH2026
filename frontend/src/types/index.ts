@@ -158,3 +158,33 @@ export interface EmergencyResource {
   capacity?: number;
   current_occupancy?: number;
 }
+
+export interface SensorReading {
+  id: string;
+  label: string;
+  icon: string;
+  value: number;
+  unit: string;
+  status: 'normal' | 'warning' | 'critical';
+  trend: 'up' | 'down' | 'stable';
+  min: number;
+  max: number;
+  threshold_warn: number;
+  threshold_crit: number;
+  history: number[];
+}
+
+export interface LiveSensorsResponse {
+  sensors: SensorReading[];
+  timestamp: string;
+  network_status: string;
+  active_nodes: number;
+  source: string;
+}
+
+export interface LiveEvent {
+  type: string;
+  timestamp: string;
+  data?: any;
+}
+
