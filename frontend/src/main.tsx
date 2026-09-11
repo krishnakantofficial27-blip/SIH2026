@@ -205,56 +205,6 @@ function App() {
         </div>
       </header>
 
-      {/* Top Horizontal Web Navigation Bar (Always visible on desktop/laptop) */}
-      <nav className="top-horizontal-nav">
-        <div className="horizontal-nav-scroll">
-          <button className={`nav-pill-btn ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => handleTabClick('dashboard')}>
-            <MapPinned size={14} /> {t('dashboard')}
-          </button>
-          <button className={`nav-pill-btn ${activeTab === 'map' ? 'active' : ''}`} onClick={() => handleTabClick('map')}>
-            <Layers size={14} /> {t('risk_map')}
-          </button>
-          <button className={`nav-pill-btn ${activeTab === 'sensors' ? 'active' : ''}`} onClick={() => handleTabClick('sensors')}>
-            <Activity size={14} /> {t('sensors')}
-          </button>
-          <button className={`nav-pill-btn ${activeTab === 'weather' ? 'active' : ''}`} onClick={() => handleTabClick('weather')}>
-            <CloudSun size={14} /> {t('weather')}
-          </button>
-          <button className={`nav-pill-btn ${activeTab === 'ml' ? 'active' : ''}`} onClick={() => handleTabClick('ml')}>
-            <Brain size={14} /> {t('ml')}
-          </button>
-          <button className={`nav-pill-btn ${activeTab === 'analytics' ? 'active' : ''}`} onClick={() => handleTabClick('analytics')}>
-            <BarChart3 size={14} /> {t('analytics')}
-          </button>
-          <button className={`nav-pill-btn ${activeTab === 'route' ? 'active' : ''}`} onClick={() => handleTabClick('route')}>
-            <Route size={14} /> {t('route')}
-          </button>
-          <button className={`nav-pill-btn ${activeTab === 'emergency' ? 'active' : ''}`} onClick={() => handleTabClick('emergency')}>
-            <Phone size={14} /> {t('emergency')}
-          </button>
-          <button className={`nav-pill-btn ${activeTab === 'evacuation' ? 'active' : ''}`} onClick={() => handleTabClick('evacuation')}>
-            <Siren size={14} /> {t('evacuation')}
-          </button>
-          <button className={`nav-pill-btn ${activeTab === 'report' ? 'active' : ''}`} onClick={() => handleTabClick('report')}>
-            <Send size={14} /> {t('report')}
-          </button>
-          <button className={`nav-pill-btn ${activeTab === 'alerts' ? 'active' : ''}`} onClick={() => handleTabClick('alerts')}>
-            <Bell size={14} /> {t('alerts')} ({activeAlertsCount})
-          </button>
-          <button className={`nav-pill-btn ${activeTab === 'history' ? 'active' : ''}`} onClick={() => handleTabClick('history')}>
-            <Calendar size={14} /> {t('history')}
-          </button>
-          <button className={`nav-pill-btn ${activeTab === 'methodology' ? 'active' : ''}`} onClick={() => handleTabClick('methodology')}>
-            <BookOpen size={14} /> {t('methodology')}
-          </button>
-          {role === 'Authority' && (
-            <button className={`nav-pill-btn authority-pill ${activeTab === 'authority' ? 'active' : ''}`} onClick={() => handleTabClick('authority')}>
-              <ShieldCheck size={14} /> {t('authority_console')}
-            </button>
-          )}
-        </div>
-      </nav>
-
       {/* Backdrop */}
       {sidebarOpen && <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)}></div>}
 
