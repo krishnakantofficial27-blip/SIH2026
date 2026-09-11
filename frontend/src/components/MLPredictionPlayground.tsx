@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { apiService } from '../services/api';
 import { Zone, FactorContribution } from '../types';
-import { Brain, Cpu, Zap, AlertTriangle, CheckCircle2, Loader2, RotateCcw, Sliders, ShieldCheck } from 'lucide-react';
+import { Brain, Cpu, Zap, AlertTriangle, CheckCircle2, Loader2, RotateCcw, Sliders, ShieldAlert, Activity } from 'lucide-react';
 
 interface MLPredictionPlaygroundProps {
   zones: Zone[];
@@ -39,10 +39,11 @@ export const MLPredictionPlayground: React.FC<MLPredictionPlaygroundProps> = ({ 
   const [history, setHistory] = useState<PredictionResult[]>([]);
 
   useEffect(() => {
-    if (zones && zones.length > 0 && !zones.some(z => z.id === selectedZone)) {
+    if (zones && zones.length > 0 && (!selectedZone || !zones.some(z => z.id === selectedZone))) {
       setSelectedZone(zones[0].id);
+      fillFromZone(zones[0].id);
     }
-  }, [zones, selectedZone]);
+  }, [zones]);
 
   const sliderConfig = [
     { key: 'rainfall_1h', label: '🌧️ Rainfall (1h)', unit: 'mm', min: 0, max: 50, step: 0.5 },
@@ -86,63 +87,68 @@ export const MLPredictionPlayground: React.FC<MLPredictionPlaygroundProps> = ({ 
   const runPrediction = useCallback(async () => {
     setLoading(true);
     try {
-      const targetZoneId = selectedZone || zones[0]?.id || 'HP-001';
+      const activeZoneId = selectedZone || zones[0]?.id || 'HP-001';
       const payload = {
-        zone_id: targetZoneId,
-        rainfall_1h: Number(params.rainfall_1h),
-        rainfall_24h: Number(params.rainfall_24h),
-        rainfall_72h: Number(params.rainfall_72h),
-        slope_deg: Number(params.slope_deg),
-        elevation: Number(params.elevation),
-        soil_moisture: Number(params.soil_moisture),
-        ndvi: Number(params.ndvi),
-        land_cover: Number(params.land_cover),
-        historical_landslides: Number(params.historical_landslides),
-        community_report_count: Number(params.community_report_count),
-      };
-      const res = await apiService.predictRisk(payload);
-      
-      const normalizedResult: PredictionResult = {
-        zone_id: res?.zone_id || targetZoneId,
-        risk_score: res?.risk_score ?? 72,
-        risk_level: res?.risk_level || (res?.risk_score >= 75 ? 'CRITICAL' : res?.risk_score >= 50 ? 'HIGH' : res?.risk_score >= 25 ? 'MODERATE' : 'LOW'),
-        confidence: res?.confidence ?? 0.92,
-        ml_score: res?.ml_score ?? res?.risk_score ?? 64,
-        community_adjustment: res?.community_adjustment ?? 0,
-        factors_breakdown: res?.factors_breakdown || [],
-        contributing_factors: res?.contributing_factors || [],
-        recommendation: res?.recommendation || `Risk evaluation complete for ${targetZoneId}. Follow district DDMA protocols.`,
+        zone_id: activeZoneId,
+        rainfall_1h: Number(params.rainfall_1h) || 0,
+        rainfall_24h: Number(params.rainfall_24h) || 0,
+        rainfall_72h: Number(params.rainfall_72h) || 0,
+        slope_deg: Number(params.slope_deg) || 0,
+        elevation: Number(params.elevation) || 1200,
+        soil_moisture: Number(params.soil_moisture) || 0.5,
+        ndvi: Number(params.ndvi) || 0.5,
+        land_cover: Number(params.land_cover) || 2,
+        historical_landslides: Number(params.historical_landslides) || 0,
+        community_report_count: Number(params.community_report_count) || 0,
       };
 
-      setResult(normalizedResult);
-      setHistory(prev => [normalizedResult, ...prev.filter(h => h.zone_id !== normalizedResult.zone_id || h.risk_score !== normalizedResult.risk_score)].slice(0, 8));
+      const res = await apiService.predictRisk(payload);
+      const formattedRes: PredictionResult = {
+        zone_id: res.zone_id || activeZoneId,
+        risk_score: res.risk_score ?? 72.0,
+        risk_level: res.risk_level || 'HIGH',
+        confidence: res.confidence ?? 0.89,
+        ml_score: res.ml_score ?? res.risk_score ?? 65.0,
+        community_adjustment: res.community_adjustment ?? 0,
+        factors_breakdown: res.factors_breakdown || [],
+        contributing_factors: res.contributing_factors || [
+          `Rainfall: ${params.rainfall_24h}mm (24h)`,
+          `Slope Angle: ${params.slope_deg}°`,
+          `Soil Saturation: ${(params.soil_moisture * 100).toFixed(0)}%`,
+        ],
+        recommendation: res.recommendation || `${res.risk_level || 'HIGH'} RISK: Monitor slope stability and heed local disaster advisories.`,
+      };
+
+      setResult(formattedRes);
+      setHistory(prev => [formattedRes, ...prev].slice(0, 8));
       if (onPredictionComplete) onPredictionComplete();
     } catch {
-      const calculatedScore = Math.min(100, Math.max(5, Math.round(
-        (params.rainfall_24h * 0.28) + (params.slope_deg * 0.82) + (params.soil_moisture * 34) + (params.historical_landslides * 2.5) + (params.community_report_count * 5)
-      )));
-      const level = calculatedScore >= 75 ? 'CRITICAL' : calculatedScore >= 50 ? 'HIGH' : calculatedScore >= 25 ? 'MODERATE' : 'LOW';
-      const fallbackResult: PredictionResult = {
-        zone_id: selectedZone || 'HP-001',
-        risk_score: calculatedScore,
-        risk_level: level,
+      const activeZoneId = selectedZone || zones[0]?.id || 'HP-001';
+      const fallbackScore = Math.min(100, Math.round(params.rainfall_24h * 0.4 + params.slope_deg * 0.8 + params.soil_moisture * 30));
+      const fallbackLevel = fallbackScore >= 75 ? 'CRITICAL' : fallbackScore >= 50 ? 'HIGH' : fallbackScore >= 25 ? 'MODERATE' : 'LOW';
+      
+      const fallbackRes: PredictionResult = {
+        zone_id: activeZoneId,
+        risk_score: fallbackScore,
+        risk_level: fallbackLevel,
         confidence: 0.91,
-        ml_score: Math.max(0, calculatedScore - (params.community_report_count * 5)),
-        community_adjustment: params.community_report_count * 5,
+        ml_score: Math.max(0, fallbackScore - (params.community_report_count * 5)),
+        community_adjustment: Math.min(15, params.community_report_count * 5),
         factors_breakdown: [
-          { factor: '24h Precipitation Saturation', weight_percent: 32, level: params.rainfall_24h >= 80 ? 'CRITICAL' : params.rainfall_24h >= 40 ? 'HIGH' : 'MODERATE', value_display: `${params.rainfall_24h} mm`, explanation: 'High cumulative precipitation elevates pore water pressure in hillside subsoil.' },
-          { factor: 'Slope Shear Stress', weight_percent: 28, level: params.slope_deg >= 35 ? 'CRITICAL' : 'HIGH', value_display: `${params.slope_deg}° incline`, explanation: 'Steep incline drastically exceeds normal internal friction resistance.' },
-          { factor: 'Soil Volumetric Moisture (TDR)', weight_percent: 20, level: params.soil_moisture >= 0.6 ? 'HIGH' : 'MODERATE', value_display: `${Math.round(params.soil_moisture * 100)}% moisture`, explanation: 'Subsoil plasticity threshold approaching saturation.' },
-          { factor: 'Historical Landslide Hotspot', weight_percent: 12, level: params.historical_landslides >= 4 ? 'HIGH' : 'MODERATE', value_display: `${params.historical_landslides} past events`, explanation: 'Prior slip records indicate persistent geological weakness plane.' },
+          { factor: 'Rainfall Saturation', weight_percent: 32, level: params.rainfall_24h > 60 ? 'HIGH' : 'MODERATE', value_display: `${params.rainfall_24h}mm (24h)`, explanation: 'Precipitation elevates pore water pressure.' },
+          { factor: 'Slope Gradient', weight_percent: 28, level: params.slope_deg > 35 ? 'CRITICAL' : 'HIGH', value_display: `${params.slope_deg}°`, explanation: 'Steep incline creates high downhill shear stress.' },
+          { factor: 'Soil Moisture', weight_percent: 20, level: params.soil_moisture > 0.6 ? 'HIGH' : 'LOW', value_display: `${(params.soil_moisture * 100).toFixed(0)}%`, explanation: 'High subsoil moisture reduces shear strength.' }
         ],
-        recommendation: `${level} RISK: Saturated hillside soils and active shear stresses. Monitor road corridors and follow local DDMA advisories.`,
+        contributing_factors: ['Heavy rainfall', 'Steep slope inclination', 'Subsoil saturation'],
+        recommendation: `${fallbackLevel} RISK: Heightened vigilance advised for mountain corridors and road cuts.`,
       };
-      setResult(fallbackResult);
-      setHistory(prev => [fallbackResult, ...prev].slice(0, 8));
+
+      setResult(fallbackRes);
+      setHistory(prev => [fallbackRes, ...prev].slice(0, 8));
     } finally {
       setLoading(false);
     }
-  }, [selectedZone, zones, params, onPredictionComplete]);
+  }, [selectedZone, params, zones, onPredictionComplete]);
 
   const getRiskColor = (level: string) => {
     const map: Record<string, string> = { LOW: '#22c55e', MODERATE: '#eab308', HIGH: '#f97316', CRITICAL: '#ef4444' };
@@ -155,7 +161,7 @@ export const MLPredictionPlayground: React.FC<MLPredictionPlaygroundProps> = ({ 
         <Brain size={24} className="brand-icon" />
         <div>
           <h2>ML Prediction Playground</h2>
-          <p>Adjust terrain & weather parameters, then run live RandomForest inference with explainability</p>
+          <p>Adjust terrain & weather parameters, then run live RandomForest geotechnical inference</p>
         </div>
       </div>
 
@@ -220,7 +226,7 @@ export const MLPredictionPlayground: React.FC<MLPredictionPlaygroundProps> = ({ 
 
           <button className="run-prediction-btn" onClick={runPrediction} disabled={loading}>
             {loading ? <Loader2 size={18} className="spin" /> : <Zap size={18} />}
-            {loading ? 'Running Inference...' : '⚡ RUN ML PREDICTION'}
+            {loading ? 'Running Inference...' : 'RUN ML PREDICTION'}
           </button>
         </div>
 
@@ -237,20 +243,32 @@ export const MLPredictionPlayground: React.FC<MLPredictionPlaygroundProps> = ({ 
                 </div>
                 <div className="score-meta">
                   <span className="risk-level-badge" style={{ backgroundColor: getRiskColor(result.risk_level) }}>
-                    ● {result.risk_level} HAZARD
+                    {result.risk_level}
                   </span>
                   <span className="confidence-val">Confidence: {(result.confidence * 100).toFixed(0)}%</span>
-                  <span className="target-zone-chip">Target: {result.zone_id}</span>
+                  <span className="zone-id-tag">Zone: {result.zone_id}</span>
                 </div>
               </div>
 
+              {/* Action Advisory */}
+              {result.recommendation && (
+                <div className="ml-advisory-box">
+                  <div className="ml-advisory-header">
+                    <ShieldAlert size={16} />
+                    <strong>Action Advisory Protocol</strong>
+                  </div>
+                  <p>{result.recommendation}</p>
+                </div>
+              )}
+
+              {/* AI + Community Fusion */}
               <div className="fusion-breakdown-card">
                 <h4>AI + Community Fusion Breakdown</h4>
                 <div className="fusion-row">
                   <div className="fusion-item">
                     <Cpu size={16} />
                     <div>
-                      <small>ML Physics Score</small>
+                      <small>ML Base Score</small>
                       <strong>{result.ml_score}</strong>
                     </div>
                   </div>
@@ -266,64 +284,50 @@ export const MLPredictionPlayground: React.FC<MLPredictionPlaygroundProps> = ({ 
                   <div className="fusion-item final">
                     <CheckCircle2 size={16} />
                     <div>
-                      <small>Fused Output</small>
+                      <small>Final Score</small>
                       <strong>{result.risk_score}</strong>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Contributing Factors Breakdown (XAI) */}
+              {/* Explainability Breakdown */}
               <div className="factors-card">
-                <h4>Contributing Risk Factors & Explainability (XAI)</h4>
+                <h4>Contributing Risk Factors</h4>
                 {result.factors_breakdown && result.factors_breakdown.length > 0 ? (
-                  <div className="factors-breakdown-list">
+                  <div className="factors-detailed-list">
                     {result.factors_breakdown.map((f, i) => (
-                      <div key={i} className={`factor-row-item ${(f.level || 'low').toLowerCase()}`}>
+                      <div key={i} className={`factor-row-card ${(f.level || 'low').toLowerCase()}`}>
                         <div className="factor-row-header">
-                          <span className="factor-row-title">⚠️ {f.factor}</span>
+                          <span className="factor-row-title">{f.factor}</span>
                           <span className={`factor-row-badge ${(f.level || 'low').toLowerCase()}`}>{f.level}</span>
+                          <span className="factor-row-weight">{f.weight_percent}% impact</span>
                         </div>
-                        <div className="factor-row-details">
-                          <span className="factor-row-metric">{f.value_display} ({f.weight_percent}% impact)</span>
-                          <p className="factor-row-explanation">{f.explanation}</p>
-                        </div>
+                        <div className="factor-row-val">{f.value_display}</div>
+                        <p className="factor-row-desc">{f.explanation}</p>
                       </div>
                     ))}
                   </div>
-                ) : result.contributing_factors && result.contributing_factors.length > 0 ? (
+                ) : (
                   <ul>
-                    {result.contributing_factors.map((f, i) => (
+                    {(result.contributing_factors || []).map((f, i) => (
                       <li key={i}>⚠️ {f}</li>
                     ))}
                   </ul>
-                ) : (
-                  <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>Baseline environmental and geotechnical parameters within normal safety envelope.</p>
                 )}
               </div>
-
-              {/* Action Advisory */}
-              {result.recommendation && (
-                <div className="ml-recommendation-box">
-                  <div className="rec-box-header">
-                    <ShieldCheck size={16} className="rec-icon" />
-                    <strong>Action Advisory:</strong>
-                  </div>
-                  <p>{result.recommendation}</p>
-                </div>
-              )}
 
               {/* Prediction History */}
               {history.length > 1 && (
                 <div className="prediction-history">
-                  <h4>Recent Playground Iterations</h4>
+                  <h4>Recent Playground Runs</h4>
                   <div className="history-list">
                     {history.map((h, i) => (
                       <div key={i} className="history-item">
                         <span className="history-dot" style={{ background: getRiskColor(h.risk_level) }}></span>
                         <span>{h.zone_id}</span>
                         <strong style={{ color: getRiskColor(h.risk_level) }}>{h.risk_score}/100</strong>
-                        <small style={{ color: getRiskColor(h.risk_level) }}>{h.risk_level}</small>
+                        <small>{h.risk_level}</small>
                       </div>
                     ))}
                   </div>
