@@ -904,6 +904,7 @@ async def predict_live_location(req: LiveLocationPredictRequest, s: Session = De
         'action_advice': determine_action_advice(level, loc_name)
     }
 
+@app.get('/api/summary')
 @app.get('/api/risk-summary')
 def get_risk_summary(s: Session = Depends(get_db)):
     zones = s.scalars(select(ZoneModel)).all()
