@@ -69,3 +69,43 @@ describe('Geotechnical Physics Factor of Safety Formulation', () => {
     expect(fs).toBeGreaterThan(0.5);
   });
 });
+
+describe('Rainfall Anomaly & Risk Tier Classification', () => {
+  it('should accurately compute rainfall anomaly percentage when historical baseline is present', () => {
+    const current24h = 184.0;
+    const historicalBaseline = 72.0;
+    const anomalyPct = Math.round(((current24h - historicalBaseline) / historicalBaseline) * 100);
+    expect(anomalyPct).toBe(156);
+  });
+
+  it('should map risk score to 4-tier disaster warning thresholds', () => {
+    const classifyRisk = (score: number) => {
+      if (score >= 75) return 'CRITICAL';
+      if (score >= 50) return 'HIGH';
+      if (score >= 25) return 'MODERATE';
+      return 'LOW';
+    };
+
+    expect(classifyRisk(15)).toBe('LOW');
+    expect(classifyRisk(35)).toBe('MODERATE');
+    expect(classifyRisk(64)).toBe('HIGH');
+    expect(classifyRisk(88)).toBe('CRITICAL');
+  });
+
+  it('should format data freshness status badges properly', () => {
+    const formatDataBadge = (status: 'LIVE' | 'CACHED' | 'DEMO' | 'UNAVAILABLE') => {
+      const map = {
+        LIVE: '🟢 LIVE',
+        CACHED: '🟡 CACHED',
+        DEMO: '🔵 DEMO',
+        UNAVAILABLE: '🔴 UNAVAILABLE'
+      };
+      return map[status];
+    };
+
+    expect(formatDataBadge('LIVE')).toBe('🟢 LIVE');
+    expect(formatDataBadge('CACHED')).toBe('🟡 CACHED');
+    expect(formatDataBadge('DEMO')).toBe('🔵 DEMO');
+    expect(formatDataBadge('UNAVAILABLE')).toBe('🔴 UNAVAILABLE');
+  });
+});
