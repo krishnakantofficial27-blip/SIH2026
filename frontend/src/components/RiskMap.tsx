@@ -482,18 +482,60 @@ export const RiskMap: React.FC<RiskMapProps> = ({
               </CircleMarker>
             ))}
 
-          {/* Safe Route Polylines */}
+          {/* Safe Route Polylines & Transit Waypoints */}
           {layers.safeRoute && routeData && (
             <>
-              <Polyline
-                positions={routeData.safe_route.route}
-                pathOptions={{ color: '#10b981', weight: 5, dashArray: '8, 8' }}
-              />
-              {routeData.fastest_route && (
+              {/* Alternative / Direct route with cautionary trace */}
+              {routeData.fastest_route && 
+               JSON.stringify(routeData.fastest_route.route) !== JSON.stringify(routeData.safe_route.route) && (
                 <Polyline
                   positions={routeData.fastest_route.route}
-                  pathOptions={{ color: '#f97316', weight: 3, opacity: 0.6 }}
+                  pathOptions={{ color: '#f97316', weight: 4, opacity: 0.6, dashArray: '6, 6' }}
                 />
+              )}
+
+              {/* Recommended Safe Highway Corridor - Solid Emerald with Outer Glow */}
+              <Polyline
+                positions={routeData.safe_route.route}
+                pathOptions={{ color: '#065f46', weight: 8, opacity: 0.5 }}
+              />
+              <Polyline
+                positions={routeData.safe_route.route}
+                pathOptions={{ color: '#10b981', weight: 5, opacity: 0.95 }}
+              />
+
+              {/* Departure Origin Marker */}
+              {routeData.safe_route.route.length > 0 && (
+                <CircleMarker
+                  center={routeData.safe_route.route[0]}
+                  radius={8}
+                  pathOptions={{ color: '#ffffff', fillColor: '#2563eb', fillOpacity: 1, weight: 3 }}
+                >
+                  <Popup>
+                    <div className="map-popup-card">
+                      <div className="popup-badge" style={{ backgroundColor: '#2563eb' }}>ORIGIN</div>
+                      <strong>📍 Departure Location</strong>
+                      <p>Lat: {routeData.safe_route.route[0][0].toFixed(4)}, Lng: {routeData.safe_route.route[0][1].toFixed(4)}</p>
+                    </div>
+                  </Popup>
+                </CircleMarker>
+              )}
+
+              {/* Destination Arrival Marker */}
+              {routeData.safe_route.route.length > 1 && (
+                <CircleMarker
+                  center={routeData.safe_route.route[routeData.safe_route.route.length - 1]}
+                  radius={8}
+                  pathOptions={{ color: '#ffffff', fillColor: '#10b981', fillOpacity: 1, weight: 3 }}
+                >
+                  <Popup>
+                    <div className="map-popup-card">
+                      <div className="popup-badge" style={{ backgroundColor: '#10b981' }}>DESTINATION</div>
+                      <strong>🏁 Safe Arrival Point</strong>
+                      <p>Lat: {routeData.safe_route.route[routeData.safe_route.route.length - 1][0].toFixed(4)}, Lng: {routeData.safe_route.route[routeData.safe_route.route.length - 1][1].toFixed(4)}</p>
+                    </div>
+                  </Popup>
+                </CircleMarker>
               )}
             </>
           )}
