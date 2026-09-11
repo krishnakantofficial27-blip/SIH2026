@@ -194,13 +194,13 @@ function App() {
             </div>
           ) : (
             <button className="header-login-btn" onClick={() => handleTabClick('login')}>
-              <LogIn size={15} /> <span className="login-btn-text">{t('login_portal')}</span>
+              <LogIn size={15} /> {t('login_portal')}
             </button>
           )}
 
           {/* Judge Simulation Flow Button */}
           <button className="scenario-btn highlight" onClick={() => setShowSimModal(true)}>
-            <Play size={15} /> <span className="sim-btn-full">{t('run_simulation')}</span><span className="sim-btn-short">Sim</span>
+            <Play size={15} /> {t('run_simulation')}
           </button>
         </div>
       </header>
@@ -607,53 +607,8 @@ function App() {
           </div>
         </footer>
       </main>
-
-      {/* Native Mobile Bottom Navigation Bar (Phone Only <= 768px) */}
-      <nav className="mobile-bottom-nav">
-        <button 
-          className={`mob-nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
-          onClick={() => handleTabClick('dashboard')}
-          title="Dashboard Overview"
-        >
-          <MapPinned size={19} />
-          <span>Dashboard</span>
-        </button>
-        <button 
-          className={`mob-nav-item ${activeTab === 'map' ? 'active' : ''}`}
-          onClick={() => handleTabClick('map')}
-          title="Live Risk Map"
-        >
-          <Layers size={19} />
-          <span>Risk Map</span>
-        </button>
-        <button 
-          className={`mob-nav-item ${activeTab === 'route' ? 'active' : ''}`}
-          onClick={() => handleTabClick('route')}
-          title="Safe Route Corridor"
-        >
-          <Route size={19} />
-          <span>Safe Route</span>
-        </button>
-        <button 
-          className={`mob-nav-item ${activeTab === 'alerts' ? 'active' : ''}`}
-          onClick={() => handleTabClick('alerts')}
-          title="Active Warnings"
-        >
-          <Bell size={19} />
-          <span>Alerts{activeAlertsCount > 0 ? ` (${activeAlertsCount})` : ''}</span>
-        </button>
-        <button 
-          className={`mob-nav-item ${activeTab === 'emergency' ? 'active' : ''}`}
-          onClick={() => handleTabClick('emergency')}
-          title="Emergency Helplines (112)"
-        >
-          <Phone size={19} />
-          <span>112 Help</span>
-        </button>
-      </nav>
     </div>
   );
 }
 
 createRoot(document.getElementById('root')!).render(<App />);
-
