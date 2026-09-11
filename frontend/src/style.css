@@ -468,13 +468,13 @@ aside.sidebar-drawer.open {
 main.main-content-full {
   margin-left: 0;
   width: 100%;
-  padding: 20px 24px;
-  max-width: 1440px;
-  margin-inline: auto;
+  padding: 24px 32px;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .hero-subhead {
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 
 h1,
@@ -485,7 +485,7 @@ h3 {
 }
 
 h1 {
-  font-size: 28px;
+  font-size: 30px;
   letter-spacing: -0.5px;
   color: #ffffff;
 }
@@ -867,15 +867,15 @@ h1 {
 .stats {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 14px;
-  margin: 20px 0;
+  gap: 16px;
+  margin: 22px 0;
 }
 
 .stat-card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: 11px;
-  padding: 16px 18px;
+  border-radius: 12px;
+  padding: 18px 20px;
   transition: all 0.2s ease;
 }
 
@@ -893,10 +893,11 @@ h1 {
   display: block;
   color: var(--text-secondary);
   font-weight: 600;
+  font-size: 13px;
 }
 
 .stat-card b {
-  font: 700 28px 'Outfit', sans-serif;
+  font: 700 32px 'Outfit', sans-serif;
   display: block;
   margin-top: 8px;
   color: #ffffff;
@@ -905,7 +906,7 @@ h1 {
 .grid-two {
   display: grid;
   grid-template-columns: 1.6fr 1fr;
-  gap: 20px;
+  gap: 22px;
 }
 
 .panel {
@@ -1156,7 +1157,7 @@ h1 {
 }
 
 .leaflet-map-canvas {
-  height: 440px;
+  height: 520px;
   width: 100%;
   border-radius: 10px;
   border: 1px solid var(--border-color);
