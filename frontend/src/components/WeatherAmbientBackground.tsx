@@ -80,28 +80,20 @@ export const WeatherAmbientBackground: React.FC<WeatherAmbientProps> = ({
     let timerId: number;
 
     const triggerStrike = () => {
-      const nextStrikeDelay = Math.random() * 5000 + 3500;
+      const nextStrikeDelay = Math.random() * 12000 + 18000;
       timerId = window.setTimeout(() => {
-        // Generate main fork strike
         const canvas = canvasRef.current;
         const w = canvas ? canvas.width : window.innerWidth;
         const startX = Math.random() * (w * 0.7) + w * 0.15;
-        const root = generateLightningBolt(startX, 0, Math.random() * 50 + 60, (Math.random() - 0.5) * 0.4, 4);
+        const root = generateLightningBolt(startX, 0, Math.random() * 40 + 50, (Math.random() - 0.5) * 0.35, 3);
         lightningBoltRef.current = [root];
         setLightningActive(true);
 
-        // Multi-stage pulse flash
         setTimeout(() => {
           setLightningActive(false);
-          setTimeout(() => {
-            setLightningActive(true);
-            setTimeout(() => {
-              setLightningActive(false);
-              lightningBoltRef.current = [];
-              triggerStrike();
-            }, 80);
-          }, 60);
-        }, 120);
+          lightningBoltRef.current = [];
+          triggerStrike();
+        }, 300);
       }, nextStrikeDelay);
     };
 

@@ -155,6 +155,13 @@ export const WeatherForecast: React.FC<WeatherForecastProps> = ({
   const [showInteractiveMap, setShowInteractiveMap] = useState<boolean>(true);
   const [isCustomPin, setIsCustomPin] = useState<boolean>(false);
 
+  const onWeatherConditionDetectedRef = React.useRef(onWeatherConditionDetected);
+  useEffect(() => {
+    onWeatherConditionDetectedRef.current = onWeatherConditionDetected;
+  });
+
+  const lastTargetKeyRef = React.useRef<string>('');
+
   // Sync selectedZone if passed from main app
   useEffect(() => {
     if (selectedZone) {
@@ -183,6 +190,11 @@ export const WeatherForecast: React.FC<WeatherForecastProps> = ({
   }, [pinnedLocation]);
 
   const fetchWeather = useCallback(async (target: WeatherTargetLocation) => {
+    const targetKey = `${target.lat.toFixed(3)}-${target.lng.toFixed(3)}`;
+    if (targetKey === lastTargetKeyRef.current && forecastData.length > 0) {
+      return;
+    }
+    lastTargetKeyRef.current = targetKey;
     setLoading(true);
     setError(null);
     try {
@@ -230,9 +242,9 @@ export const WeatherForecast: React.FC<WeatherForecastProps> = ({
       }
       setForecastData(days);
 
-      if (onWeatherConditionDetected && days.length > 0) {
+      if (onWeatherConditionDetectedRef.current && days.length > 0) {
         const cond = getAtmosphereFromForecast(days[0]);
-        onWeatherConditionDetected(cond, {
+        onWeatherConditionDetectedRef.current(cond, {
           temp: days[0].temp_high,
           rainfall: days[0].rainfall_mm,
           conditionName: days[0].condition,
@@ -251,9 +263,9 @@ export const WeatherForecast: React.FC<WeatherForecastProps> = ({
         { day: 'Day 7', date: '+144h', icon: '☀️', condition: 'Clear Sky', temp_high: 27, temp_low: 17, rainfall_mm: 0.0, humidity: 52, wind_kmh: 7, risk_projection: 10, risk_level: 'LOW' },
       ];
       setForecastData(fallbackDays);
-      if (onWeatherConditionDetected && fallbackDays.length > 0) {
+      if (onWeatherConditionDetectedRef.current && fallbackDays.length > 0) {
         const cond = getAtmosphereFromForecast(fallbackDays[0]);
-        onWeatherConditionDetected(cond, {
+        onWeatherConditionDetectedRef.current(cond, {
           temp: fallbackDays[0].temp_high,
           rainfall: fallbackDays[0].rainfall_mm,
           conditionName: fallbackDays[0].condition,
@@ -263,7 +275,7 @@ export const WeatherForecast: React.FC<WeatherForecastProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [onWeatherConditionDetected]);
+  }, [forecastData.length]);
 
   useEffect(() => {
     fetchWeather(selectedTarget);
@@ -524,13 +536,18 @@ export const WeatherForecast: React.FC<WeatherForecastProps> = ({
         </div>
       </div>
 
-      {loading ? (
+      {loading && forecastData.length === 0 ? (
         <div className="loading-state">
           <Loader2 className="spin" size={28} />
           <span>Ingesting Open-Meteo precipitation models for {selectedTarget.name}...</span>
         </div>
       ) : (
         <>
+          {loading && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#38bdf8', padding: '6px 12px', background: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.2)', borderRadius: '8px', marginBottom: '16px' }}>
+              <Loader2 className="spin" size={14} /> Ingesting real-time atmospheric streams for {selectedTarget.name}...
+            </div>
+          )}
           {/* Summary KPIs Row */}
           <div className="weather-summary-row">
             <div className="weather-summary-card">

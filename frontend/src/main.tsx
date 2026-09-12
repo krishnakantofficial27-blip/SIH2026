@@ -110,6 +110,30 @@ function App() {
     icon?: string;
   } | null>(null);
 
+  const handleWeatherConditionDetected = useCallback((
+    cond: 'clear' | 'rain' | 'storm' | 'fog' | 'cloudy' | 'night',
+    details?: { temp?: number; rainfall?: number; conditionName?: string; locationName?: string }
+  ) => {
+    setDetectedLiveWeather(prev => {
+      if (
+        prev &&
+        prev.condition === cond &&
+        prev.temp === details?.temp &&
+        prev.name === details?.locationName &&
+        prev.rainfall === details?.rainfall
+      ) {
+        return prev;
+      }
+      return {
+        condition: cond,
+        name: details?.locationName,
+        temp: details?.temp,
+        rainfall: details?.rainfall,
+        conditionName: details?.conditionName,
+      };
+    });
+  }, []);
+
   const t = (key: string): string => TRANSLATIONS[lang]?.[key] || TRANSLATIONS.en[key] || key;
 
   const addToast = useCallback((toast: LiveToast) => {
@@ -847,9 +871,7 @@ function App() {
                   zones={zones}
                   pinnedLocation={pinnedWeatherLoc}
                   onSelectPinnedLocation={loc => setPinnedWeatherLoc(loc)}
-                  onWeatherConditionDetected={(cond, details) => {
-                    setDetectedLiveWeather({ condition: cond, ...details });
-                  }}
+                  onWeatherConditionDetected={handleWeatherConditionDetected}
                 />
               </div>
             )}
