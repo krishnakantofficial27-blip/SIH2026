@@ -226,7 +226,10 @@ export const DemoSimulationModal: React.FC<DemoSimulationModalProps> = ({
                 Mandi Pandoh Gorge risk escalated to 89/100, official warning dispatched, citizen tension crack report verified, and alternative detour generated on the Live Risk Map.
               </p>
             </div>
-            <button className="done-btn" onClick={onClose}>
+            <button className="done-btn" onClick={() => {
+              if (onNavigateTab) onNavigateTab('map');
+              onClose();
+            }}>
               View Updated Dashboard & Risk Map →
             </button>
           </div>
