@@ -40,16 +40,10 @@
 body {
   margin: 0;
   background-color: #040810;
-  background-image: 
-    linear-gradient(180deg, rgba(5, 10, 18, 0.35) 0%, rgba(5, 10, 18, 0.5) 45%, rgba(4, 8, 14, 0.75) 100%),
-    url('/images/nature-slopes-bg.jpg');
-  background-size: cover;
-  background-position: center 15%;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
   color: var(--text-primary);
   font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
 }
 
 /* ── Top Global Header Bar (Always Visible) ── */

@@ -38,6 +38,8 @@ interface WeatherForecastProps {
   zones?: Zone[];
   pinnedLocation?: { lat: number; lng: number; name?: string } | null;
   onSelectPinnedLocation?: (loc: { lat: number; lng: number; name: string }) => void;
+  onWeatherConditionDetected?: (cond: 'clear' | 'rain' | 'storm' | 'fog' | 'cloudy' | 'night', details?: { temp?: number; rainfall?: number; conditionName?: string; locationName?: string }) => void;
+  onSelectAtmosphere?: (cond: 'clear' | 'rain' | 'storm' | 'fog' | 'cloudy' | 'night') => void;
 }
 
 export const PAN_INDIA_WEATHER_LOCATIONS: WeatherTargetLocation[] = [
@@ -124,12 +126,25 @@ const WeatherMapPan: React.FC<{ center: [number, number] }> = ({ center }) => {
   return null;
 };
 
+export const getAtmosphereFromForecast = (day: ForecastDay): 'clear' | 'rain' | 'storm' | 'fog' | 'cloudy' | 'night' => {
+  const c = (day.condition || '').toLowerCase();
+  if (c.includes('thunder') || c.includes('cloudburst') || day.rainfall_mm >= 35) return 'storm';
+  if (c.includes('rain') || c.includes('drizzle') || c.includes('shower') || day.rainfall_mm >= 8) return 'rain';
+  if (c.includes('fog') || c.includes('mist')) return 'fog';
+  if (c.includes('cloud') || c.includes('overcast')) return 'cloudy';
+  const hour = new Date().getHours();
+  if (hour >= 19 || hour < 6) return 'night';
+  return 'clear';
+};
+
 export const WeatherForecast: React.FC<WeatherForecastProps> = ({ 
   userLocation,
   selectedZone,
   zones = [],
   pinnedLocation,
-  onSelectPinnedLocation
+  onSelectPinnedLocation,
+  onWeatherConditionDetected,
+  onSelectAtmosphere
 }) => {
   const [selectedTarget, setSelectedTarget] = useState<WeatherTargetLocation>(PAN_INDIA_WEATHER_LOCATIONS[0]);
   const [activeRegion, setActiveRegion] = useState<string>('ALL');
@@ -158,8 +173,8 @@ export const WeatherForecast: React.FC<WeatherForecastProps> = ({
   useEffect(() => {
     if (pinnedLocation) {
       setSelectedTarget({
-        name: pinnedLocation.name || `Pinned Location (${pinnedLocation.lat.toFixed(2)}°N, ${pinnedLocation.lng.toFixed(2)}°E)`,
-        region: 'Custom Pinpoint',
+        name: pinnedLocation.name || `Pinned [${pinnedLocation.lat.toFixed(2)}, ${pinnedLocation.lng.toFixed(2)}]`,
+        region: 'Pinned Marker',
         lat: pinnedLocation.lat,
         lng: pinnedLocation.lng
       });
@@ -171,31 +186,34 @@ export const WeatherForecast: React.FC<WeatherForecastProps> = ({
     setLoading(true);
     setError(null);
     try {
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${target.lat}&longitude=${target.lng}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max&timezone=auto`;
-      const res = await axios.get(url, { timeout: 7000 });
-      
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${target.lat}&longitude=${target.lng}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max&timezone=Asia%2FKolkata`;
+      const res = await axios.get(url, { timeout: 6000 });
       const daily = res.data.daily;
+
       const days: ForecastDay[] = [];
-      
-      for (let i = 0; i < 7; i++) {
-        const dateObj = new Date(daily.time[i]);
-        const dayName = i === 0 ? 'Today' : dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-        const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        
-        const wmo = parseWMOCode(daily.weathercode[i]);
-        const rain = daily.precipitation_sum[i] || 0;
-        
-        // Geotechnical slope instability correlation
-        let newRisk = 15;
-        if (rain > 10) newRisk += rain * 1.3;
-        if (rain > 40) newRisk += 25; // Saturated cloudburst threshold
-        newRisk = Math.min(100, Math.round(newRisk));
-        
+      const numDays = Math.min(daily.time.length, 7);
+
+      for (let i = 0; i < numDays; i++) {
+        const dateStr = daily.time[i];
+        const dateObj = new Date(dateStr);
+        const dayName = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+        const code = daily.weathercode[i];
+        const wmo = parseWMOCode(code);
+        const rain = daily.precipitation_sum[i] || 0.0;
+
+        let newRisk = 12;
         let newLevel = 'LOW';
-        if (newRisk >= 75) newLevel = 'CRITICAL';
-        else if (newRisk >= 50) newLevel = 'HIGH';
-        else if (newRisk >= 25) newLevel = 'MODERATE';
-        
+        if (rain > 40) {
+          newRisk = 85;
+          newLevel = 'CRITICAL';
+        } else if (rain > 20) {
+          newRisk = 62;
+          newLevel = 'HIGH';
+        } else if (rain > 5) {
+          newRisk = 38;
+          newLevel = 'MODERATE';
+        }
+
         days.push({
           day: dayName,
           date: dateStr,
@@ -211,8 +229,18 @@ export const WeatherForecast: React.FC<WeatherForecastProps> = ({
         });
       }
       setForecastData(days);
+
+      if (onWeatherConditionDetected && days.length > 0) {
+        const cond = getAtmosphereFromForecast(days[0]);
+        onWeatherConditionDetected(cond, {
+          temp: days[0].temp_high,
+          rainfall: days[0].rainfall_mm,
+          conditionName: days[0].condition,
+          locationName: target.name
+        });
+      }
     } catch {
-      // Robust realistic Himalayan/Western Ghats fallback
+      // Robust realistic fallback
       const fallbackDays: ForecastDay[] = [
         { day: 'Today', date: 'Live Today', icon: '🌧️', condition: 'Monsoon Rain', temp_high: 23, temp_low: 16, rainfall_mm: 42.5, humidity: 85, wind_kmh: 18, risk_projection: 65, risk_level: 'HIGH' },
         { day: 'Tomorrow', date: '+24h', icon: '🌧️', condition: 'Heavy Precipitation', temp_high: 21, temp_low: 15, rainfall_mm: 58.0, humidity: 90, wind_kmh: 24, risk_projection: 82, risk_level: 'CRITICAL' },
@@ -223,10 +251,19 @@ export const WeatherForecast: React.FC<WeatherForecastProps> = ({
         { day: 'Day 7', date: '+144h', icon: '☀️', condition: 'Clear Sky', temp_high: 27, temp_low: 17, rainfall_mm: 0.0, humidity: 52, wind_kmh: 7, risk_projection: 10, risk_level: 'LOW' },
       ];
       setForecastData(fallbackDays);
+      if (onWeatherConditionDetected && fallbackDays.length > 0) {
+        const cond = getAtmosphereFromForecast(fallbackDays[0]);
+        onWeatherConditionDetected(cond, {
+          temp: fallbackDays[0].temp_high,
+          rainfall: fallbackDays[0].rainfall_mm,
+          conditionName: fallbackDays[0].condition,
+          locationName: target.name
+        });
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [onWeatherConditionDetected]);
 
   useEffect(() => {
     fetchWeather(selectedTarget);
@@ -546,28 +583,47 @@ export const WeatherForecast: React.FC<WeatherForecastProps> = ({
 
           {/* 7-Day Forecast Grid */}
           <div className="forecast-grid-seven">
-            {forecastData.map(day => (
-              <div key={day.date} className={`forecast-day-card ${day.risk_level.toLowerCase()}`}>
-                <span className="day-name">{day.day}</span>
-                <span className="day-date">{day.date}</span>
-                
-                <span className="weather-icon-large">{day.icon}</span>
-                <span className="condition-text">{day.condition}</span>
+            {forecastData.map(day => {
+              const atm = getAtmosphereFromForecast(day);
+              return (
+                <div 
+                  key={day.date} 
+                  className={`forecast-day-card ${day.risk_level.toLowerCase()} clickable-weather-card`}
+                  onClick={() => onSelectAtmosphere && onSelectAtmosphere(atm)}
+                  title={`Click to preview ${day.condition} background ambiance`}
+                >
+                  <span className="day-name">{day.day}</span>
+                  <span className="day-date">{day.date}</span>
+                  
+                  <span className="weather-icon-large">{day.icon}</span>
+                  <span className="condition-text">{day.condition}</span>
 
-                <div className="temp-range">
-                  <span className="temp-high">{day.temp_high}°</span>
-                  <span className="temp-low">{day.temp_low}°</span>
-                </div>
+                  <div className="temp-range">
+                    <span className="temp-high">{day.temp_high}°</span>
+                    <span className="temp-low">{day.temp_low}°</span>
+                  </div>
 
-                <div className="rain-badge">
-                  <CloudRain size={13} /> {day.rainfall_mm} mm
-                </div>
+                  <div className="rain-badge">
+                    <CloudRain size={13} /> {day.rainfall_mm} mm
+                  </div>
 
-                <div className="risk-projection-badge" style={{ backgroundColor: getRiskColor(day.risk_level) }}>
-                  {day.risk_level} ({day.risk_projection})
+                  <div className="risk-projection-badge" style={{ backgroundColor: getRiskColor(day.risk_level) }}>
+                    {day.risk_level} ({day.risk_projection})
+                  </div>
+
+                  <button 
+                    className="preview-weather-bg-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onSelectAtmosphere) onSelectAtmosphere(atm);
+                    }}
+                    title="Apply atmospheric background"
+                  >
+                    ✨ Preview Ambiance
+                  </button>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="weather-footer-note">

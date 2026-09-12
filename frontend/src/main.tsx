@@ -24,11 +24,13 @@ import { RemoteSensingViewerComponent } from './components/RemoteSensingViewer';
 import { ProductionDiagnosticsComponent } from './components/ProductionDiagnostics';
 import { TRANSLATIONS, Language } from './utils/translations';
 
+import { WeatherAmbientBackground, WeatherConditionType } from './components/WeatherAmbientBackground';
 import { 
   ShieldCheck, AlertTriangle, MapPinned, Route, Users, CloudRain, 
   Play, Send, Layers, BarChart3, Bell, Menu, X, Globe, LogIn, LogOut, UserCheck,
   Brain, Activity, Siren, Calendar, CloudSun, Phone, BookOpen, Clock, Sparkles, CheckCircle2,
-  RefreshCw, Radio, Zap, Award, Orbit, Server, Sliders, Database, Lock
+  RefreshCw, Radio, Zap, Award, Orbit, Server, Sliders, Database, Lock,
+  ChevronDown, Sun, CloudFog, CloudLightning, Moon
 } from 'lucide-react';
 import './style.css';
 
@@ -63,6 +65,16 @@ interface LiveToast {
   time: string;
 }
 
+const WEATHER_MOOD_CONFIG: Record<string, { label: string; icon: string; desc: string }> = {
+  auto: { label: 'Live Auto', icon: '⚡', desc: 'Syncs with real telemetry & active zone' },
+  clear: { label: 'Clear Skies', icon: '☀️', desc: 'Warm sunlight radiance' },
+  rain: { label: 'Monsoon Rain', icon: '🌧️', desc: 'Falling rain streaks & wet atmosphere' },
+  storm: { label: 'Severe Storm', icon: '⛈️', desc: 'Heavy torrents & lightning flashes' },
+  fog: { label: 'Mountain Mist', icon: '🌫️', desc: 'Drifting ethereal fog layers' },
+  cloudy: { label: 'Dense Overcast', icon: '☁️', desc: 'Rolling cloud layers' },
+  night: { label: 'Midnight Sky', icon: '🌙', desc: 'Obsidian starry night sky' },
+};
+
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [role, setRole] = useState<'Resident' | 'Authority'>('Resident');
@@ -84,6 +96,36 @@ function App() {
   const [notice, setNotice] = useState<string>('');
   const [syncingWeather, setSyncingWeather] = useState<boolean>(false);
   const [toasts, setToasts] = useState<LiveToast[]>([]);
+
+  // Dynamic Weather Atmosphere State
+  const [weatherMood, setWeatherMood] = useState<WeatherConditionType>('auto');
+  const [weatherDropdownOpen, setWeatherDropdownOpen] = useState<boolean>(false);
+  const [detectedLiveWeather, setDetectedLiveWeather] = useState<{
+    condition: 'clear' | 'rain' | 'storm' | 'fog' | 'cloudy' | 'night';
+    name?: string;
+    temp?: number;
+    rainfall?: number;
+  } | null>(null);
+
+  const resolvedWeatherCondition = React.useMemo<'clear' | 'rain' | 'storm' | 'fog' | 'cloudy' | 'night'>(() => {
+    if (weatherMood !== 'auto') return weatherMood;
+    if (selectedZone) {
+      if (selectedZone.rainfall_24h >= 45 || selectedZone.rainfall_1h >= 20) return 'storm';
+      if (selectedZone.rainfall_24h >= 10 || selectedZone.rainfall_1h >= 3) return 'rain';
+      if (selectedZone.soil_moisture >= 65) return 'fog';
+      if (selectedZone.rainfall_24h > 0) return 'cloudy';
+      const hr = new Date().getHours();
+      return (hr >= 19 || hr < 6) ? 'night' : 'clear';
+    }
+    if (detectedLiveWeather?.condition) {
+      return detectedLiveWeather.condition;
+    }
+    if (summary?.overall_level === 'CRITICAL') return 'storm';
+    if (summary?.overall_level === 'HIGH') return 'rain';
+    const currentHour = new Date().getHours();
+    if (currentHour >= 19 || currentHour < 6) return 'night';
+    return 'clear';
+  }, [weatherMood, selectedZone, detectedLiveWeather, summary]);
 
   useEffect(() => {
     if (sidebarOpen) {
@@ -263,6 +305,13 @@ function App() {
 
   return (
     <div className="shell">
+      {/* Dynamic Multi-Layered Atmospheric Weather Background */}
+      <WeatherAmbientBackground 
+        resolvedCondition={resolvedWeatherCondition} 
+        currentCondition={weatherMood} 
+        weatherDetails={detectedLiveWeather || undefined} 
+      />
+
       {/* Top Global Navigation Bar */}
       <header className="top-global-header">
         <div className="header-left">
@@ -278,13 +327,85 @@ function App() {
           </div>
         </div>
 
-        {/* System Telemetry Badges */}
+        {/* System Telemetry & Weather Atmosphere Badges */}
         <div className="header-center-badges">
           <div className="live-status-pill">
             <span className="pulse-green"></span>
             <span>LIVE SYNC ACTIVE</span>
             <small>· {lastUpdatedTime}</small>
           </div>
+
+          {/* Dynamic Weather Atmosphere Switcher */}
+          <div className="weather-ambiance-pill-container" style={{ position: 'relative' }}>
+            <button 
+              className="weather-ambiance-pill"
+              onClick={() => setWeatherDropdownOpen(prev => !prev)}
+              title="Change Dynamic Weather Background Ambiance"
+            >
+              <span className="weather-icon-pulse">{WEATHER_MOOD_CONFIG[resolvedWeatherCondition]?.icon || '🌤️'}</span>
+              <span className="weather-mode-name">
+                {weatherMood === 'auto' ? `Auto: ${WEATHER_MOOD_CONFIG[resolvedWeatherCondition]?.label}` : WEATHER_MOOD_CONFIG[weatherMood]?.label}
+              </span>
+              {weatherMood === 'auto' ? (
+                <span className="weather-status-live">LIVE</span>
+              ) : (
+                <span className="weather-opt-badge">PREVIEW</span>
+              )}
+              <ChevronDown size={13} style={{ opacity: 0.7, transform: weatherDropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+            </button>
+
+            {weatherDropdownOpen && (
+              <>
+                <div 
+                  style={{ position: 'fixed', inset: 0, zIndex: 999 }} 
+                  onClick={() => setWeatherDropdownOpen(false)} 
+                />
+                <div className="weather-ambiance-dropdown">
+                  <div className="weather-dropdown-header">
+                    <span>ATMOSPHERIC BACKGROUND</span>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setWeatherDropdownOpen(false); }}
+                      style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '13px' }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  {(Object.keys(WEATHER_MOOD_CONFIG) as WeatherConditionType[]).map(key => {
+                    const item = WEATHER_MOOD_CONFIG[key];
+                    const isSelected = weatherMood === key;
+                    return (
+                      <button
+                        key={key}
+                        className={`weather-option-btn ${isSelected ? 'active' : ''}`}
+                        onClick={() => {
+                          setWeatherMood(key);
+                          setWeatherDropdownOpen(false);
+                          addToast({
+                            id: String(Date.now()),
+                            title: `${item.icon} Atmospheric Weather Mode`,
+                            message: `Dynamic background ambiance switched to ${item.label} (${item.desc}).`,
+                            severity: 'INFO',
+                            time: new Date().toLocaleTimeString(),
+                          });
+                        }}
+                      >
+                        <div className="weather-opt-left">
+                          <span className="weather-opt-icon">{item.icon}</span>
+                          <div>
+                            <div style={{ fontWeight: isSelected ? 600 : 500 }}>{item.label}</div>
+                            <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>{item.desc}</div>
+                          </div>
+                        </div>
+                        {key === 'auto' && <span className="weather-opt-badge">LIVE SENSORS</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+
           {dataMode && (
             <div 
               style={{
@@ -721,6 +842,19 @@ function App() {
                   zones={zones}
                   pinnedLocation={pinnedWeatherLoc}
                   onSelectPinnedLocation={loc => setPinnedWeatherLoc(loc)}
+                  onWeatherConditionDetected={(cond, details) => {
+                    setDetectedLiveWeather({ condition: cond, ...details });
+                  }}
+                  onSelectAtmosphere={(mood) => {
+                    setWeatherMood(mood);
+                    addToast({
+                      id: String(Date.now()),
+                      title: '✨ Dynamic Weather Backdrop Applied',
+                      message: `Switched background ambiance to ${WEATHER_MOOD_CONFIG[mood]?.label || mood}.`,
+                      severity: 'INFO',
+                      time: new Date().toLocaleTimeString(),
+                    });
+                  }}
                 />
               </div>
             )}
