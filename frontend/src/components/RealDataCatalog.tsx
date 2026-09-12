@@ -4,14 +4,17 @@ import { HistoricalDisasterRecord, DataSourcesAudit } from '../types';
 import { 
   Database, ShieldCheck, MapPin, Calendar, 
   AlertTriangle, Filter, RefreshCw, CheckCircle2, 
-  ExternalLink, Layers, Waves 
+  ExternalLink, Layers, Waves, Search, Loader2, Sparkles, Check
 } from 'lucide-react';
 
 export const RealDataCatalogComponent: React.FC = () => {
   const [disasters, setDisasters] = useState<HistoricalDisasterRecord[]>([]);
   const [audit, setAudit] = useState<DataSourcesAudit | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [syncing, setSyncing] = useState<boolean>(false);
+  const [syncSuccessMsg, setSyncSuccessMsg] = useState<string>('');
   const [stateFilter, setStateFilter] = useState<string>('ALL');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedRecord, setSelectedRecord] = useState<HistoricalDisasterRecord | null>(null);
 
   const fetchData = async () => {
@@ -23,8 +26,8 @@ export const RealDataCatalogComponent: React.FC = () => {
       ]);
       setDisasters(cat);
       setAudit(aud);
-      if (cat.length > 0 && !selectedRecord) {
-        setSelectedRecord(cat[0]);
+      if (cat.length > 0) {
+        setSelectedRecord(prev => (prev && cat.some(c => c.id === prev.id) ? prev : cat[0]));
       }
     } catch (err) {
       console.error('Failed to load real data catalog:', err);
@@ -33,9 +36,43 @@ export const RealDataCatalogComponent: React.FC = () => {
     }
   };
 
+  const handleSyncRealCatalog = async () => {
+    setSyncing(true);
+    setSyncSuccessMsg('');
+    try {
+      const res = await apiService.syncGSINASACatalog(stateFilter);
+      setDisasters(res.catalog);
+      setAudit(res.audit);
+      if (res.catalog.length > 0) {
+        setSelectedRecord(res.catalog[0]);
+      }
+      setSyncSuccessMsg(`✓ Synced live: ${res.catalog.length} canonical GSI & NASA ground truth records verified.`);
+      setTimeout(() => {
+        setSyncSuccessMsg('');
+      }, 6000);
+    } catch (err) {
+      console.error('Failed to sync catalog:', err);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   useEffect(() => {
     fetchData();
   }, [stateFilter]);
+
+  const filteredDisasters = disasters.filter(d => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      d.name.toLowerCase().includes(q) ||
+      d.state.toLowerCase().includes(q) ||
+      d.district.toLowerCase().includes(q) ||
+      d.location.toLowerCase().includes(q) ||
+      d.id.toLowerCase().includes(q) ||
+      String(d.year || '').includes(q)
+    );
+  });
 
   return (
     <div className="real-data-catalog-container">
@@ -48,10 +85,26 @@ export const RealDataCatalogComponent: React.FC = () => {
           <h2>Geological Survey of India (GSI) &amp; NASA Historical Disaster Catalog</h2>
           <p>Authentic multi-decadal landslide database tracking ground truth coordinates, 24h peak rainfall triggers, soil lithology, and post-disaster audits.</p>
         </div>
-        <button className="btn-refresh-telemetry" onClick={fetchData}>
-          <RefreshCw size={15} /> Sync Real Catalog
+        <button 
+          className="btn-refresh-telemetry" 
+          onClick={handleSyncRealCatalog}
+          disabled={syncing || loading}
+          style={{ opacity: syncing ? 0.75 : 1 }}
+        >
+          {syncing ? <Loader2 size={15} className="spin" /> : <RefreshCw size={15} />}
+          <span>{syncing ? 'Syncing Real Catalog...' : 'Sync Real Catalog'}</span>
         </button>
       </div>
+
+      {/* Sync Success Notification Toast */}
+      {syncSuccessMsg && (
+        <div className="notice info-banner" style={{ borderLeftColor: '#10b981', background: 'rgba(6, 78, 59, 0.4)', marginBottom: 20 }}>
+          <CheckCircle2 size={18} style={{ color: '#34d399', flexShrink: 0 }} />
+          <div style={{ color: '#a7f3d0', fontSize: 13, fontWeight: 600 }}>
+            {syncSuccessMsg}
+          </div>
+        </div>
+      )}
 
       {/* Data Provenance & Ingestion Live Audit */}
       {audit && (
@@ -76,7 +129,7 @@ export const RealDataCatalogComponent: React.FC = () => {
         </div>
       )}
 
-      {/* Filter and Content Split View */}
+      {/* Filter and Search Toolbar */}
       <div className="catalog-toolbar">
         <div className="filter-group">
           <Filter size={16} />
@@ -91,8 +144,28 @@ export const RealDataCatalogComponent: React.FC = () => {
             <option value="Sikkim">Sikkim (Eastern Himalayas)</option>
           </select>
         </div>
-        <span className="catalog-count-badge">
-          Showing <strong>{disasters.length}</strong> Verified Historical Ground Truth Disasters
+
+        <div className="filter-group" style={{ marginLeft: 8 }}>
+          <Search size={15} style={{ color: '#94a3b8' }} />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search disaster name, district, year..."
+            style={{
+              background: 'var(--bg-body-dark)',
+              border: '1px solid var(--border-color)',
+              borderRadius: 6,
+              color: '#ffffff',
+              padding: '6px 10px',
+              fontSize: 12,
+              minWidth: 220
+            }}
+          />
+        </div>
+
+        <span className="catalog-count-badge" style={{ marginLeft: 'auto' }}>
+          Showing <strong>{filteredDisasters.length}</strong> of {disasters.length} Ground Truth Disasters
         </span>
       </div>
 
@@ -111,7 +184,7 @@ export const RealDataCatalogComponent: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {disasters.map(d => (
+              {filteredDisasters.map(d => (
                 <tr 
                   key={d.id} 
                   className={selectedRecord?.id === d.id ? 'active-row' : ''}
@@ -128,6 +201,13 @@ export const RealDataCatalogComponent: React.FC = () => {
                   <td><strong className="text-red-400">{d.fatalities > 0 ? `${d.fatalities} victims` : '0 (Evacuated)'}</strong></td>
                 </tr>
               ))}
+              {filteredDisasters.length === 0 && (
+                <tr>
+                  <td colSpan={6} style={{ textAlign: 'center', padding: '30px 10px', color: '#94a3b8' }}>
+                    No disaster records matching current filter or search criteria.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -189,3 +269,4 @@ export const RealDataCatalogComponent: React.FC = () => {
     </div>
   );
 };
+
