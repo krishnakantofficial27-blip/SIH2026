@@ -25,6 +25,7 @@ import { ProductionDiagnosticsComponent } from './components/ProductionDiagnosti
 import { TRANSLATIONS, Language } from './utils/translations';
 
 import { WeatherAmbientBackground, WeatherConditionType } from './components/WeatherAmbientBackground';
+import { detectCurrentPlaceWeather } from './utils/currentWeather';
 import { 
   ShieldCheck, AlertTriangle, MapPinned, Route, Users, CloudRain, 
   Play, Send, Layers, BarChart3, Bell, Menu, X, Globe, LogIn, LogOut, UserCheck,
@@ -105,37 +106,9 @@ function App() {
     name?: string;
     temp?: number;
     rainfall?: number;
+    conditionName?: string;
+    icon?: string;
   } | null>(null);
-
-  const resolvedWeatherCondition = React.useMemo<'clear' | 'rain' | 'storm' | 'fog' | 'cloudy' | 'night'>(() => {
-    if (weatherMood !== 'auto') return weatherMood;
-    if (selectedZone) {
-      if (selectedZone.rainfall_24h >= 45 || selectedZone.rainfall_1h >= 20) return 'storm';
-      if (selectedZone.rainfall_24h >= 10 || selectedZone.rainfall_1h >= 3) return 'rain';
-      if (selectedZone.soil_moisture >= 65) return 'fog';
-      if (selectedZone.rainfall_24h > 0) return 'cloudy';
-      const hr = new Date().getHours();
-      return (hr >= 19 || hr < 6) ? 'night' : 'clear';
-    }
-    if (detectedLiveWeather?.condition) {
-      return detectedLiveWeather.condition;
-    }
-    if (summary?.overall_level === 'CRITICAL') return 'storm';
-    if (summary?.overall_level === 'HIGH') return 'rain';
-    const currentHour = new Date().getHours();
-    if (currentHour >= 19 || currentHour < 6) return 'night';
-    return 'clear';
-  }, [weatherMood, selectedZone, detectedLiveWeather, summary]);
-
-  useEffect(() => {
-    if (sidebarOpen) {
-      const originalOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = originalOverflow;
-      };
-    }
-  }, [sidebarOpen]);
 
   const t = (key: string): string => TRANSLATIONS[lang]?.[key] || TRANSLATIONS.en[key] || key;
 
@@ -149,6 +122,64 @@ function App() {
   const removeToast = (id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id));
   };
+
+  const syncCurrentPlaceWeather = useCallback(async (silent = false) => {
+    try {
+      const result = await detectCurrentPlaceWeather();
+      setUserLocation({ lat: result.lat, lng: result.lng });
+      setDetectedLiveWeather({
+        condition: result.condition,
+        name: result.locationName,
+        temp: result.temp,
+        rainfall: result.rainfallMm,
+        conditionName: result.conditionName,
+        icon: result.icon,
+      });
+      if (!silent) {
+        addToast({
+          id: String(Date.now()),
+          title: `📍 Local Place Weather (${result.temp}°C)`,
+          message: `Auto-synchronized with ${result.locationName}: ${result.icon} ${result.conditionName}. Atmospheric background adjusted.`,
+          severity: 'SUCCESS',
+          time: new Date().toLocaleTimeString(),
+        });
+      }
+    } catch (err) {
+      console.error('Failed to detect current place weather', err);
+    }
+  }, [addToast]);
+
+  const resolvedWeatherCondition = React.useMemo<'clear' | 'rain' | 'storm' | 'fog' | 'cloudy' | 'night'>(() => {
+    if (weatherMood !== 'auto') return weatherMood;
+    // 1. Prioritize detected real-time weather of user's current place
+    if (detectedLiveWeather?.condition) {
+      return detectedLiveWeather.condition;
+    }
+    // 2. If a specific zone is selected, use that zone's conditions
+    if (selectedZone) {
+      if (selectedZone.rainfall_24h >= 45 || selectedZone.rainfall_1h >= 20) return 'storm';
+      if (selectedZone.rainfall_24h >= 10 || selectedZone.rainfall_1h >= 3) return 'rain';
+      if (selectedZone.soil_moisture >= 65) return 'fog';
+      if (selectedZone.rainfall_24h > 0) return 'cloudy';
+      const hr = new Date().getHours();
+      return (hr >= 19 || hr < 6) ? 'night' : 'clear';
+    }
+    if (summary?.overall_level === 'CRITICAL') return 'storm';
+    if (summary?.overall_level === 'HIGH') return 'rain';
+    const currentHour = new Date().getHours();
+    if (currentHour >= 19 || currentHour < 6) return 'night';
+    return 'clear';
+  }, [weatherMood, detectedLiveWeather, selectedZone, summary]);
+
+  useEffect(() => {
+    if (sidebarOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [sidebarOpen]);
 
   const [dataMode, setDataMode] = useState<{ configured_mode: string; is_real_data: boolean; status_badge: string } | null>(null);
 
@@ -190,20 +221,24 @@ function App() {
   const handleSyncLiveWeather = async () => {
     setSyncingWeather(true);
     try {
-      const res = await apiService.syncLiveWeather();
+      const [res] = await Promise.all([
+        apiService.syncLiveWeather(),
+        syncCurrentPlaceWeather(false),
+      ]);
       await loadData();
       addToast({
         id: String(Date.now()),
         title: '🌧️ Live Meteorological Ingestion',
-        message: `Successfully synchronized live precipitation for ${res.synced_zones || 22} national zones via Open-Meteo.`,
+        message: `Synchronized live precipitation for ${res.synced_zones || 22} national zones & your local current location.`,
         severity: 'SUCCESS',
         time: new Date().toLocaleTimeString(),
       });
     } catch {
+      await syncCurrentPlaceWeather(false);
       addToast({
         id: String(Date.now()),
         title: '⚠️ Weather Sync Notice',
-        message: 'Loaded cached meteorological precipitation grid.',
+        message: 'Loaded real-time local weather stream.',
         severity: 'INFO',
         time: new Date().toLocaleTimeString(),
       });
@@ -214,6 +249,8 @@ function App() {
 
   useEffect(() => {
     loadData();
+    // Automatically detect & synchronize background with actual current place weather on mount
+    syncCurrentPlaceWeather(true);
 
     // ── 1. Real-Time Live Event Pipeline (WebSocket) ──
     const cleanupWs = initLiveWebSocket((ev: LiveEvent) => {
@@ -340,14 +377,16 @@ function App() {
             <button 
               className="weather-ambiance-pill"
               onClick={() => setWeatherDropdownOpen(prev => !prev)}
-              title="Change Dynamic Weather Background Ambiance"
+              title="Click to toggle or choose weather background ambiance"
             >
               <span className="weather-icon-pulse">{WEATHER_MOOD_CONFIG[resolvedWeatherCondition]?.icon || '🌤️'}</span>
               <span className="weather-mode-name">
-                {weatherMood === 'auto' ? `Auto: ${WEATHER_MOOD_CONFIG[resolvedWeatherCondition]?.label}` : WEATHER_MOOD_CONFIG[weatherMood]?.label}
+                {weatherMood === 'auto' 
+                  ? `Auto: ${detectedLiveWeather?.name ? detectedLiveWeather.name.split(' (')[0] : 'Current Place'} · ${WEATHER_MOOD_CONFIG[resolvedWeatherCondition]?.label}${detectedLiveWeather?.temp !== undefined ? ` (${detectedLiveWeather.temp}°C)` : ''}`
+                  : WEATHER_MOOD_CONFIG[weatherMood]?.label}
               </span>
               {weatherMood === 'auto' ? (
-                <span className="weather-status-live">LIVE</span>
+                <span className="weather-status-live">📍 GPS AUTO</span>
               ) : (
                 <span className="weather-opt-badge">PREVIEW</span>
               )}
@@ -374,6 +413,7 @@ function App() {
                   {(Object.keys(WEATHER_MOOD_CONFIG) as WeatherConditionType[]).map(key => {
                     const item = WEATHER_MOOD_CONFIG[key];
                     const isSelected = weatherMood === key;
+                    const isAuto = key === 'auto';
                     return (
                       <button
                         key={key}
@@ -381,23 +421,37 @@ function App() {
                         onClick={() => {
                           setWeatherMood(key);
                           setWeatherDropdownOpen(false);
-                          addToast({
-                            id: String(Date.now()),
-                            title: `${item.icon} Atmospheric Weather Mode`,
-                            message: `Dynamic background ambiance switched to ${item.label} (${item.desc}).`,
-                            severity: 'INFO',
-                            time: new Date().toLocaleTimeString(),
-                          });
+                          if (isAuto) {
+                            syncCurrentPlaceWeather(false);
+                          } else {
+                            addToast({
+                              id: String(Date.now()),
+                              title: `${item.icon} Atmospheric Weather Mode`,
+                              message: `Dynamic background ambiance switched to ${item.label} (${item.desc}).`,
+                              severity: 'INFO',
+                              time: new Date().toLocaleTimeString(),
+                            });
+                          }
                         }}
                       >
                         <div className="weather-opt-left">
                           <span className="weather-opt-icon">{item.icon}</span>
                           <div>
-                            <div style={{ fontWeight: isSelected ? 600 : 500 }}>{item.label}</div>
-                            <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>{item.desc}</div>
+                            <div style={{ fontWeight: isSelected ? 600 : 500 }}>
+                              {isAuto
+                                ? `⚡ Live Auto (${detectedLiveWeather?.name ? detectedLiveWeather.name.split(' (')[0] : 'Current Place'})`
+                                : item.label}
+                            </div>
+                            <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
+                              {isAuto
+                                ? `Real-time weather of your location (${detectedLiveWeather?.conditionName || 'Live Telemetry'}${detectedLiveWeather?.temp !== undefined ? ` · ${detectedLiveWeather.temp}°C` : ''})`
+                                : item.desc}
+                            </div>
                           </div>
                         </div>
-                        {key === 'auto' && <span className="weather-opt-badge">LIVE SENSORS</span>}
+                        {isAuto ? (
+                          <span className="weather-opt-badge" style={{ background: 'rgba(16, 185, 129, 0.25)', color: '#34d399' }}>📍 LOCAL GPS</span>
+                        ) : null}
                       </button>
                     );
                   })}
