@@ -85,6 +85,16 @@ function App() {
   const [syncingWeather, setSyncingWeather] = useState<boolean>(false);
   const [toasts, setToasts] = useState<LiveToast[]>([]);
 
+  useEffect(() => {
+    if (sidebarOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [sidebarOpen]);
+
   const t = (key: string): string => TRANSLATIONS[lang]?.[key] || TRANSLATIONS.en[key] || key;
 
   const addToast = useCallback((toast: LiveToast) => {

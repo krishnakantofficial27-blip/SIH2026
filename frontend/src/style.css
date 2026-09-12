@@ -329,6 +329,8 @@ body {
   inset: 0;
   background: rgba(0, 0, 0, 0.65);
   z-index: 900;
+  overscroll-behavior: contain;
+  touch-action: none;
 }
 
 aside.sidebar-drawer {
@@ -336,16 +338,22 @@ aside.sidebar-drawer {
   top: 0;
   bottom: 0;
   left: 0;
-  width: 280px;
+  width: 290px;
+  max-width: 85vw;
+  height: 100vh;
+  max-height: 100vh;
   background: var(--bg-header);
   color: #d9e5e5;
-  padding: 24px 18px;
+  padding: 20px 16px;
   display: flex;
   flex-direction: column;
   z-index: 1000;
   box-shadow: 6px 0 25px rgba(0, 0, 0, 0.5);
   transform: translateX(-100%);
   transition: transform 0.3s ease-in-out;
+  overscroll-behavior: contain;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 aside.sidebar-drawer.open {
@@ -356,6 +364,7 @@ aside.sidebar-drawer.open {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .close-drawer-btn {
@@ -391,7 +400,8 @@ aside.sidebar-drawer.open {
 }
 
 .tag {
-  margin: 6px 0 16px 0;
+  margin: 6px 0 14px 0;
+  flex-shrink: 0;
 }
 
 .drawer-user-info {
@@ -400,6 +410,7 @@ aside.sidebar-drawer.open {
   padding: 10px 12px;
   border-radius: 6px;
   margin-bottom: 14px;
+  flex-shrink: 0;
 }
 
 .drawer-user-info small {
@@ -418,23 +429,49 @@ aside.sidebar-drawer.open {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding-right: 6px;
+  margin-bottom: 12px;
+}
+
+.nav-menu::-webkit-scrollbar {
+  width: 5px;
+}
+
+.nav-menu::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+}
+
+.nav-menu::-webkit-scrollbar-thumb {
+  background: rgba(134, 164, 170, 0.35);
+  border-radius: 4px;
+}
+
+.nav-menu::-webkit-scrollbar-thumb:hover {
+  background: rgba(134, 164, 170, 0.6);
 }
 
 .nav-menu button {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 14px;
+  padding: 10px 12px;
   background: transparent;
   border: 0;
   color: #b7c9cb;
   font-family: inherit;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 600;
   border-radius: 8px;
   cursor: pointer;
   text-align: left;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
 .nav-menu button:hover,
@@ -444,8 +481,8 @@ aside.sidebar-drawer.open {
 }
 
 .role-switcher {
-  margin-top: auto;
-  padding: 14px;
+  flex-shrink: 0;
+  padding: 12px 14px;
   background: var(--bg-input);
   border-radius: 10px;
   border: 1px solid var(--border-highlight);
