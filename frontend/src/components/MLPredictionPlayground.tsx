@@ -22,14 +22,15 @@ interface PredictionResult {
 
 export const MLPredictionPlayground: React.FC<MLPredictionPlaygroundProps> = ({ zones, onPredictionComplete }) => {
   const [selectedZone, setSelectedZone] = useState<string>(zones[0]?.id || 'HP-001');
+  const [activeScenario, setActiveScenario] = useState<'normal' | 'monsoon' | 'extreme' | null>('monsoon');
   const [params, setParams] = useState({
-    rainfall_1h: 12.0,
-    rainfall_24h: 75.0,
-    rainfall_72h: 140.0,
+    rainfall_1h: 14.0,
+    rainfall_24h: 78.0,
+    rainfall_72h: 155.0,
     slope_deg: 34.0,
-    elevation: 1200.0,
-    soil_moisture: 0.58,
-    ndvi: 0.50,
+    elevation: 1350.0,
+    soil_moisture: 0.62,
+    ndvi: 0.46,
     land_cover: 2,
     historical_landslides: 4,
     community_report_count: 2,
@@ -37,13 +38,6 @@ export const MLPredictionPlayground: React.FC<MLPredictionPlaygroundProps> = ({ 
   const [result, setResult] = useState<PredictionResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<PredictionResult[]>([]);
-
-  useEffect(() => {
-    if (zones && zones.length > 0 && (!selectedZone || !zones.some(z => z.id === selectedZone))) {
-      setSelectedZone(zones[0].id);
-      fillFromZone(zones[0].id);
-    }
-  }, [zones]);
 
   const sliderConfig = [
     { key: 'rainfall_1h', label: '🌧️ Rainfall (1h)', unit: 'mm', min: 0, max: 50, step: 0.5 },
@@ -57,98 +51,92 @@ export const MLPredictionPlayground: React.FC<MLPredictionPlaygroundProps> = ({ 
     { key: 'community_report_count', label: '👥 Community Reports', unit: 'reports', min: 0, max: 10, step: 1 },
   ];
 
-  const handlePresetScenario = (scenario: 'normal' | 'monsoon' | 'extreme') => {
-    const presets = {
-      normal: { rainfall_1h: 3, rainfall_24h: 18, rainfall_72h: 40, slope_deg: 20, elevation: 900, soil_moisture: 0.28, ndvi: 0.72, land_cover: 1, historical_landslides: 1, community_report_count: 0 },
-      monsoon: { rainfall_1h: 15, rainfall_24h: 85, rainfall_72h: 170, slope_deg: 32, elevation: 1300, soil_moisture: 0.60, ndvi: 0.45, land_cover: 2, historical_landslides: 4, community_report_count: 2 },
-      extreme: { rainfall_1h: 35, rainfall_24h: 160, rainfall_72h: 320, slope_deg: 42, elevation: 1800, soil_moisture: 0.82, ndvi: 0.30, land_cover: 3, historical_landslides: 7, community_report_count: 5 },
-    };
-    setParams(presets[scenario]);
-  };
-
-  const fillFromZone = (zoneId: string) => {
-    const z = zones.find(z => z.id === zoneId);
-    if (z) {
-      setParams({
-        rainfall_1h: z.rainfall_1h,
-        rainfall_24h: z.rainfall_24h,
-        rainfall_72h: z.rainfall_72h,
-        slope_deg: z.slope_deg,
-        elevation: z.elevation,
-        soil_moisture: z.soil_moisture,
-        ndvi: z.ndvi,
-        land_cover: z.land_cover,
-        historical_landslides: z.historical_landslides,
-        community_report_count: z.community_reports_count,
-      });
-    }
-  };
-
-  const runPrediction = useCallback(async () => {
+  const executeInference = useCallback(async (currentParams: typeof params, zoneId: string) => {
     setLoading(true);
     try {
-      const activeZoneId = selectedZone || zones[0]?.id || 'HP-001';
+      const activeZoneId = zoneId || zones[0]?.id || 'HP-001';
       const payload = {
         zone_id: activeZoneId,
-        rainfall_1h: Number(params.rainfall_1h) || 0,
-        rainfall_24h: Number(params.rainfall_24h) || 0,
-        rainfall_72h: Number(params.rainfall_72h) || 0,
-        slope_deg: Number(params.slope_deg) || 0,
-        elevation: Number(params.elevation) || 1200,
-        soil_moisture: Number(params.soil_moisture) || 0.5,
-        ndvi: Number(params.ndvi) || 0.5,
-        land_cover: Number(params.land_cover) || 2,
-        historical_landslides: Number(params.historical_landslides) || 0,
-        community_report_count: Number(params.community_report_count) || 0,
+        rainfall_1h: Number(currentParams.rainfall_1h) || 0,
+        rainfall_24h: Number(currentParams.rainfall_24h) || 0,
+        rainfall_72h: Number(currentParams.rainfall_72h) || 0,
+        slope_deg: Number(currentParams.slope_deg) || 0,
+        elevation: Number(currentParams.elevation) || 1200,
+        soil_moisture: Number(currentParams.soil_moisture) || 0.5,
+        ndvi: Number(currentParams.ndvi) || 0.5,
+        land_cover: Number(currentParams.land_cover) ?? 2,
+        historical_landslides: Number(currentParams.historical_landslides) || 0,
+        community_report_count: Number(currentParams.community_report_count) || 0,
       };
 
       const res = await apiService.predictRisk(payload);
       const formattedRes: PredictionResult = {
         zone_id: res.zone_id || activeZoneId,
-        risk_score: res.risk_score ?? 72.0,
-        risk_level: res.risk_level || 'HIGH',
-        confidence: res.confidence ?? 0.89,
-        ml_score: res.ml_score ?? res.risk_score ?? 65.0,
+        risk_score: res.risk_score ?? 50.0,
+        risk_level: res.risk_level || 'MODERATE',
+        confidence: res.confidence ?? 0.92,
+        ml_score: res.ml_score ?? res.risk_score ?? 45.0,
         community_adjustment: res.community_adjustment ?? 0,
         factors_breakdown: res.factors_breakdown || [],
         contributing_factors: res.contributing_factors || [
-          `Rainfall: ${params.rainfall_24h}mm (24h)`,
-          `Slope Angle: ${params.slope_deg}°`,
-          `Soil Saturation: ${(params.soil_moisture * 100).toFixed(0)}%`,
+          `Rainfall: ${currentParams.rainfall_24h}mm (24h)`,
+          `Slope Angle: ${currentParams.slope_deg}°`,
+          `Soil Saturation: ${(currentParams.soil_moisture * 100).toFixed(0)}%`,
         ],
-        recommendation: res.recommendation || `${res.risk_level || 'HIGH'} RISK: Monitor slope stability and heed local disaster advisories.`,
+        recommendation: res.recommendation || `${res.risk_level || 'MODERATE'} RISK: Monitor slope stability and heed local disaster advisories.`,
       };
 
       setResult(formattedRes);
-      setHistory(prev => [formattedRes, ...prev].slice(0, 8));
+      setHistory(prev => [formattedRes, ...prev.filter(h => h !== formattedRes)].slice(0, 8));
       if (onPredictionComplete) onPredictionComplete();
     } catch {
-      const activeZoneId = selectedZone || zones[0]?.id || 'HP-001';
-      const fallbackScore = Math.min(100, Math.round(params.rainfall_24h * 0.4 + params.slope_deg * 0.8 + params.soil_moisture * 30));
-      const fallbackLevel = fallbackScore >= 75 ? 'CRITICAL' : fallbackScore >= 50 ? 'HIGH' : fallbackScore >= 25 ? 'MODERATE' : 'LOW';
-      
-      const fallbackRes: PredictionResult = {
-        zone_id: activeZoneId,
-        risk_score: fallbackScore,
-        risk_level: fallbackLevel,
-        confidence: 0.91,
-        ml_score: Math.max(0, fallbackScore - (params.community_report_count * 5)),
-        community_adjustment: Math.min(15, params.community_report_count * 5),
-        factors_breakdown: [
-          { factor: 'Rainfall Saturation', weight_percent: 32, level: params.rainfall_24h > 60 ? 'HIGH' : 'MODERATE', value_display: `${params.rainfall_24h}mm (24h)`, explanation: 'Precipitation elevates pore water pressure.' },
-          { factor: 'Slope Gradient', weight_percent: 28, level: params.slope_deg > 35 ? 'CRITICAL' : 'HIGH', value_display: `${params.slope_deg}°`, explanation: 'Steep incline creates high downhill shear stress.' },
-          { factor: 'Soil Moisture', weight_percent: 20, level: params.soil_moisture > 0.6 ? 'HIGH' : 'LOW', value_display: `${(params.soil_moisture * 100).toFixed(0)}%`, explanation: 'High subsoil moisture reduces shear strength.' }
-        ],
-        contributing_factors: ['Heavy rainfall', 'Steep slope inclination', 'Subsoil saturation'],
-        recommendation: `${fallbackLevel} RISK: Heightened vigilance advised for mountain corridors and road cuts.`,
-      };
-
-      setResult(fallbackRes);
-      setHistory(prev => [fallbackRes, ...prev].slice(0, 8));
+      // Handled inside apiService.predictRisk fallback
     } finally {
       setLoading(false);
     }
-  }, [selectedZone, params, zones, onPredictionComplete]);
+  }, [zones, onPredictionComplete]);
+
+  // Initial inference on component mount
+  useEffect(() => {
+    executeInference(params, selectedZone);
+  }, []);
+
+  const handlePresetScenario = (scenario: 'normal' | 'monsoon' | 'extreme') => {
+    setActiveScenario(scenario);
+    const presets = {
+      normal: { rainfall_1h: 2.0, rainfall_24h: 12.0, rainfall_72h: 28.0, slope_deg: 18.0, elevation: 850.0, soil_moisture: 0.25, ndvi: 0.75, land_cover: 1, historical_landslides: 0, community_report_count: 0 },
+      monsoon: { rainfall_1h: 14.0, rainfall_24h: 78.0, rainfall_72h: 155.0, slope_deg: 34.0, elevation: 1350.0, soil_moisture: 0.62, ndvi: 0.46, land_cover: 2, historical_landslides: 4, community_report_count: 2 },
+      extreme: { rainfall_1h: 38.0, rainfall_24h: 175.0, rainfall_72h: 340.0, slope_deg: 44.0, elevation: 1950.0, soil_moisture: 0.85, ndvi: 0.28, land_cover: 3, historical_landslides: 8, community_report_count: 5 },
+    };
+    const nextParams = presets[scenario];
+    setParams(nextParams);
+    executeInference(nextParams, selectedZone);
+  };
+
+  const fillFromZone = (zoneId: string) => {
+    setActiveScenario(null);
+    const z = zones.find(z => z.id === zoneId);
+    if (z) {
+      const zoneParams = {
+        rainfall_1h: z.rainfall_1h || 10.0,
+        rainfall_24h: z.rainfall_24h || 50.0,
+        rainfall_72h: z.rainfall_72h || 100.0,
+        slope_deg: z.slope_deg || 30.0,
+        elevation: z.elevation || 1200.0,
+        soil_moisture: z.soil_moisture || 0.5,
+        ndvi: z.ndvi || 0.5,
+        land_cover: z.land_cover ?? 2,
+        historical_landslides: z.historical_landslides || 0,
+        community_report_count: z.community_reports_count || 0,
+      };
+      setParams(zoneParams);
+      executeInference(zoneParams, zoneId);
+    }
+  };
+
+  const runPrediction = useCallback(() => {
+    executeInference(params, selectedZone);
+  }, [executeInference, params, selectedZone]);
 
   const getRiskColor = (level: string) => {
     const map: Record<string, string> = { LOW: '#22c55e', MODERATE: '#eab308', HIGH: '#f97316', CRITICAL: '#ef4444' };
@@ -168,12 +156,34 @@ export const MLPredictionPlayground: React.FC<MLPredictionPlaygroundProps> = ({ 
       {/* Scenario Presets */}
       <div className="scenario-presets">
         <span>Quick Scenarios:</span>
-        <button onClick={() => handlePresetScenario('normal')}>☀️ Normal Day</button>
-        <button onClick={() => handlePresetScenario('monsoon')}>🌧️ Monsoon Season</button>
-        <button onClick={() => handlePresetScenario('extreme')}>🌊 Extreme Event</button>
+        <button
+          className={`scenario-btn ${activeScenario === 'normal' ? 'active normal' : ''}`}
+          onClick={() => handlePresetScenario('normal')}
+        >
+          ☀️ Normal Day
+        </button>
+        <button
+          className={`scenario-btn ${activeScenario === 'monsoon' ? 'active monsoon' : ''}`}
+          onClick={() => handlePresetScenario('monsoon')}
+        >
+          🌧️ Monsoon Season
+        </button>
+        <button
+          className={`scenario-btn ${activeScenario === 'extreme' ? 'active extreme' : ''}`}
+          onClick={() => handlePresetScenario('extreme')}
+        >
+          🌊 Extreme Event
+        </button>
         <span style={{ marginLeft: 'auto', color: '#64748b', fontSize: 11 }}>|</span>
         <span style={{ color: '#94a3b8', fontSize: 11 }}>Fill from Zone:</span>
-        <select value={selectedZone} onChange={e => { setSelectedZone(e.target.value); fillFromZone(e.target.value); }} className="zone-selector-mini">
+        <select
+          value={selectedZone}
+          onChange={e => {
+            setSelectedZone(e.target.value);
+            fillFromZone(e.target.value);
+          }}
+          className="zone-selector-mini"
+        >
           {zones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
         </select>
       </div>
@@ -199,7 +209,10 @@ export const MLPredictionPlayground: React.FC<MLPredictionPlaygroundProps> = ({ 
                   max={cfg.max}
                   step={cfg.step}
                   value={val}
-                  onChange={e => setParams(p => ({ ...p, [cfg.key]: parseFloat(e.target.value) }))}
+                  onChange={e => {
+                    setActiveScenario(null);
+                    setParams(p => ({ ...p, [cfg.key]: parseFloat(e.target.value) }));
+                  }}
                   className="styled-slider"
                 />
               </div>
@@ -213,7 +226,10 @@ export const MLPredictionPlayground: React.FC<MLPredictionPlaygroundProps> = ({ 
             </div>
             <select
               value={params.land_cover}
-              onChange={e => setParams(p => ({ ...p, land_cover: parseInt(e.target.value) }))}
+              onChange={e => {
+                setActiveScenario(null);
+                setParams(p => ({ ...p, land_cover: parseInt(e.target.value) }));
+              }}
               className="land-cover-select"
             >
               <option value={0}>0 — Dense Forest</option>

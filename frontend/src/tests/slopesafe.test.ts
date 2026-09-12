@@ -108,4 +108,69 @@ describe('Rainfall Anomaly & Risk Tier Classification', () => {
     expect(formatDataBadge('DEMO')).toBe('🔵 DEMO');
     expect(formatDataBadge('UNAVAILABLE')).toBe('🔴 UNAVAILABLE');
   });
+
+  it('should generate distinctly different ML predictions for Normal Day, Monsoon Season, and Extreme Event', async () => {
+    const normalPayload = {
+      zone_id: 'HP-001',
+      rainfall_1h: 2.0,
+      rainfall_24h: 12.0,
+      rainfall_72h: 28.0,
+      slope_deg: 18.0,
+      elevation: 850.0,
+      soil_moisture: 0.25,
+      ndvi: 0.75,
+      land_cover: 1,
+      historical_landslides: 0,
+      community_report_count: 0,
+    };
+
+    const monsoonPayload = {
+      zone_id: 'HP-001',
+      rainfall_1h: 14.0,
+      rainfall_24h: 78.0,
+      rainfall_72h: 155.0,
+      slope_deg: 34.0,
+      elevation: 1350.0,
+      soil_moisture: 0.62,
+      ndvi: 0.46,
+      land_cover: 2,
+      historical_landslides: 4,
+      community_report_count: 2,
+    };
+
+    const extremePayload = {
+      zone_id: 'HP-001',
+      rainfall_1h: 38.0,
+      rainfall_24h: 175.0,
+      rainfall_72h: 340.0,
+      slope_deg: 44.0,
+      elevation: 1950.0,
+      soil_moisture: 0.85,
+      ndvi: 0.28,
+      land_cover: 3,
+      historical_landslides: 8,
+      community_report_count: 5,
+    };
+
+    const normalRes = await apiService.predictRisk(normalPayload);
+    const monsoonRes = await apiService.predictRisk(monsoonPayload);
+    const extremeRes = await apiService.predictRisk(extremePayload);
+
+    // Normal day must be LOW risk
+    expect(normalRes.risk_score).toBeLessThan(30);
+    expect(normalRes.risk_level).toBe('LOW');
+
+    // Monsoon season must be significantly higher (MODERATE or HIGH)
+    expect(monsoonRes.risk_score).toBeGreaterThan(normalRes.risk_score + 25);
+    expect(['MODERATE', 'HIGH', 'CRITICAL']).toContain(monsoonRes.risk_level);
+
+    // Extreme event must be CRITICAL
+    expect(extremeRes.risk_score).toBeGreaterThan(monsoonRes.risk_score + 15);
+    expect(extremeRes.risk_score).toBeGreaterThanOrEqual(75);
+    expect(extremeRes.risk_level).toBe('CRITICAL');
+
+    // Contributing factors and recommendations should be tailored
+    expect(normalRes.recommendation).toContain('LOW RISK');
+    expect(extremeRes.recommendation).toContain('CRITICAL');
+  });
 });

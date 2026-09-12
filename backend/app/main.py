@@ -740,14 +740,14 @@ def get_zone(zone_id: str, s: Session = Depends(get_db)):
 @app.post('/api/predict')
 def run_prediction(p: PredictionRequest, s: Session = Depends(get_db)):
     z = s.get(ZoneModel, p.zone_id)
-    verified = p.community_report_count
+    verified = p.community_report_count if p.community_report_count is not None and p.community_report_count >= 0 else 0
     
-    if z:
+    if (p.community_report_count is None or p.community_report_count < 0) and z:
         verified_in_db = sum(
             1 for r in s.scalars(select(ReportModel).where(ReportModel.status == 'VERIFIED')).all()
             if math.dist((r.latitude, r.longitude), (z.lat, z.lng)) < 0.35
         )
-        verified = max(verified, verified_in_db)
+        verified = verified_in_db
     
     final_score, ml_score, boost, factors = predict_zone_risk(p.model_dump(), verified)
     level = calculate_risk_level(final_score)
