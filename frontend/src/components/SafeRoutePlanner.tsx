@@ -13,6 +13,7 @@ interface SafeRoutePlannerProps {
   userLocation?: { lat: number; lng: number } | null;
   onFetchLocation?: () => void;
   onViewOnMap?: () => void;
+  initialDestination?: { lat: number; lng: number; name?: string } | null;
 }
 
 const NATIONAL_DEMO_PRESETS = [
@@ -65,6 +66,7 @@ export const SafeRoutePlanner: React.FC<SafeRoutePlannerProps> = ({
   userLocation,
   onFetchLocation,
   onViewOnMap,
+  initialDestination,
 }) => {
   const [startName, setStartName] = useState<string>('Kozhikode Town');
   const [endName, setEndName] = useState<string>('Wayanad Kalpetta');
@@ -75,6 +77,18 @@ export const SafeRoutePlanner: React.FC<SafeRoutePlannerProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [routeResult, setRouteResult] = useState<SafeRouteResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState<string>('');
+
+  useEffect(() => {
+    if (initialDestination) {
+      setEndName(initialDestination.name || `Pinned [${initialDestination.lat.toFixed(3)}, ${initialDestination.lng.toFixed(3)}]`);
+      setExplicitEndCoords({ lat: initialDestination.lat, lng: initialDestination.lng });
+      if (userLocation) {
+        setStartName('My Live Location');
+        setExplicitStartCoords({ lat: userLocation.lat, lng: userLocation.lng });
+        calculateRoute(userLocation.lat, userLocation.lng, initialDestination.lat, initialDestination.lng);
+      }
+    }
+  }, [initialDestination]);
 
   const geocodePlace = async (place: string) => {
     if (place.toLowerCase().includes('my location') && userLocation) {

@@ -94,6 +94,8 @@ function App() {
   const [status, setStatus] = useState<ConnectionStatus>('connecting');
   const [lastUpdatedTime, setLastUpdatedTime] = useState<string>('Just now');
   const [pinnedWeatherLoc, setPinnedWeatherLoc] = useState<{ lat: number; lng: number; name?: string } | null>(null);
+  const [initialRouteDest, setInitialRouteDest] = useState<{ lat: number; lng: number; name?: string } | null>(null);
+  const [initialReportCoords, setInitialReportCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [notice, setNotice] = useState<string>('');
   const [syncingWeather, setSyncingWeather] = useState<boolean>(false);
   const [toasts, setToasts] = useState<LiveToast[]>([]);
@@ -740,12 +742,24 @@ function App() {
                       selectedZone={selectedZone}
                       onSelectZone={z => setSelectedZone(z)} 
                       onOpenModalZone={z => setModalZone(z)}
-                      onOpenReportModal={() => setActiveTab('report')}
-                      onNavigateToRoute={() => setActiveTab('route')} 
+                      onOpenReportModal={(prefill) => {
+                        if (prefill) setInitialReportCoords(prefill);
+                        setActiveTab('report');
+                      }}
+                      onNavigateToRoute={(dest) => {
+                        if (dest) setInitialRouteDest(dest);
+                        setActiveTab('route');
+                      }} 
+                      onNavigateToWeather={(loc) => {
+                        if (loc) setPinnedWeatherLoc(loc);
+                        setActiveTab('weather');
+                      }}
                       onNavigateToAlerts={() => setActiveTab('alerts')}
                       routeData={routeData}
                       userLocation={userLocation} 
                       onFetchLocation={handleFetchLocation} 
+                      pinnedLocation={pinnedWeatherLoc}
+                      onPinLocation={setPinnedWeatherLoc}
                       lang={lang}
                     />
                   </div>
@@ -793,12 +807,24 @@ function App() {
                   selectedZone={selectedZone}
                   onSelectZone={z => setSelectedZone(z)} 
                   onOpenModalZone={z => setModalZone(z)}
-                  onOpenReportModal={() => setActiveTab('report')}
-                  onNavigateToRoute={() => setActiveTab('route')} 
+                  onOpenReportModal={(prefill) => {
+                    if (prefill) setInitialReportCoords(prefill);
+                    setActiveTab('report');
+                  }}
+                  onNavigateToRoute={(dest) => {
+                    if (dest) setInitialRouteDest(dest);
+                    setActiveTab('route');
+                  }} 
+                  onNavigateToWeather={(loc) => {
+                    if (loc) setPinnedWeatherLoc(loc);
+                    setActiveTab('weather');
+                  }}
                   onNavigateToAlerts={() => setActiveTab('alerts')}
                   routeData={routeData}
                   userLocation={userLocation} 
                   onFetchLocation={handleFetchLocation} 
+                  pinnedLocation={pinnedWeatherLoc}
+                  onPinLocation={setPinnedWeatherLoc}
                   lang={lang}
                   onLocationSelect={(lat, lng) => setUserLocation({ lat, lng })}
                 />
@@ -857,6 +883,7 @@ function App() {
                   userLocation={userLocation}
                   onFetchLocation={handleFetchLocation}
                   onViewOnMap={() => setActiveTab('map')}
+                  initialDestination={initialRouteDest}
                 />
               </div>
             )}
@@ -882,6 +909,7 @@ function App() {
                   onReportSubmitted={loadData} 
                   userLocation={userLocation}
                   onFetchLocation={handleFetchLocation}
+                  initialLocation={initialReportCoords}
                 />
               </div>
             )}

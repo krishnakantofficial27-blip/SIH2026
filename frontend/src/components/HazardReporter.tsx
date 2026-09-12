@@ -10,6 +10,7 @@ interface HazardReporterProps {
   onReportSubmitted: () => void;
   userLocation?: { lat: number; lng: number } | null;
   onFetchLocation?: () => void;
+  initialLocation?: { lat: number; lng: number } | null;
 }
 
 const REPORT_TYPES: { type: ReportType; label: string; icon: string; desc: string }[] = [
@@ -38,18 +39,26 @@ export const HazardReporter: React.FC<HazardReporterProps> = ({
   onReportSubmitted,
   userLocation,
   onFetchLocation,
+  initialLocation,
 }) => {
   const [selectedType, setSelectedType] = useState<ReportType>('CRACK');
   const [severity, setSeverity] = useState<Severity>('HIGH');
   const [district, setDistrict] = useState<string>('Wayanad (Kerala)');
   const [description, setDescription] = useState<string>('');
-  const [lat, setLat] = useState<number>(userLocation?.lat || 11.53);
-  const [lng, setLng] = useState<number>(userLocation?.lng || 76.13);
+  const [lat, setLat] = useState<number>(initialLocation?.lat || userLocation?.lat || 11.53);
+  const [lng, setLng] = useState<number>(initialLocation?.lng || userLocation?.lng || 76.13);
   const [photoUrl, setPhotoUrl] = useState<string>('');
   const [fileName, setFileName] = useState<string>('');
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [submittedReportCode, setSubmittedReportCode] = useState<string | null>(null);
   const [statusMsg, setStatusMsg] = useState<{ text: string; isError: boolean } | null>(null);
+
+  React.useEffect(() => {
+    if (initialLocation) {
+      setLat(initialLocation.lat);
+      setLng(initialLocation.lng);
+    }
+  }, [initialLocation]);
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
