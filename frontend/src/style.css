@@ -6813,6 +6813,41 @@ footer {
   width: 90%;
 }
 
+.clickable-weather-card {
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.clickable-weather-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  border-color: rgba(56, 189, 248, 0.65);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 16px rgba(56, 189, 248, 0.2);
+}
+
+.auto-sync-day-pill {
+  font-size: 9px;
+  font-weight: 700;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 10px;
+  padding: 2px 6px;
+  margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  opacity: 0.85;
+  transition: all 0.2s ease;
+}
+
+.clickable-weather-card:hover .auto-sync-day-pill {
+  background: rgba(56, 189, 248, 0.25);
+  border-color: rgba(56, 189, 248, 0.5);
+  opacity: 1;
+  color: #ffffff;
+}
+
 .weather-footer-note {
   background: rgba(8, 18, 32, 0.45);
   border: 1px solid rgba(255, 255, 255, 0.05);

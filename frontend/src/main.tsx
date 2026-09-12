@@ -98,9 +98,7 @@ function App() {
   const [syncingWeather, setSyncingWeather] = useState<boolean>(false);
   const [toasts, setToasts] = useState<LiveToast[]>([]);
 
-  // Dynamic Weather Atmosphere State
-  const [weatherMood, setWeatherMood] = useState<WeatherConditionType>('auto');
-  const [weatherDropdownOpen, setWeatherDropdownOpen] = useState<boolean>(false);
+  // Dynamic Weather Atmosphere State (100% Fully Automatic)
   const [detectedLiveWeather, setDetectedLiveWeather] = useState<{
     condition: 'clear' | 'rain' | 'storm' | 'fog' | 'cloudy' | 'night';
     name?: string;
@@ -139,7 +137,7 @@ function App() {
         addToast({
           id: String(Date.now()),
           title: `📍 Local Place Weather (${result.temp}°C)`,
-          message: `Auto-synchronized with ${result.locationName}: ${result.icon} ${result.conditionName}. Atmospheric background adjusted.`,
+          message: `Auto-synchronized with ${result.locationName}: ${result.icon} ${result.conditionName}. Atmospheric background automatically adjusted.`,
           severity: 'SUCCESS',
           time: new Date().toLocaleTimeString(),
         });
@@ -150,12 +148,7 @@ function App() {
   }, [addToast]);
 
   const resolvedWeatherCondition = React.useMemo<'clear' | 'rain' | 'storm' | 'fog' | 'cloudy' | 'night'>(() => {
-    if (weatherMood !== 'auto') return weatherMood;
-    // 1. Prioritize detected real-time weather of user's current place
-    if (detectedLiveWeather?.condition) {
-      return detectedLiveWeather.condition;
-    }
-    // 2. If a specific zone is selected, use that zone's conditions
+    // 1. If a specific zone is selected by the user, adapt to that zone's conditions
     if (selectedZone) {
       if (selectedZone.rainfall_24h >= 45 || selectedZone.rainfall_1h >= 20) return 'storm';
       if (selectedZone.rainfall_24h >= 10 || selectedZone.rainfall_1h >= 3) return 'rain';
@@ -164,12 +157,16 @@ function App() {
       const hr = new Date().getHours();
       return (hr >= 19 || hr < 6) ? 'night' : 'clear';
     }
+    // 2. Prioritize detected real-time weather of user's current physical place
+    if (detectedLiveWeather?.condition) {
+      return detectedLiveWeather.condition;
+    }
     if (summary?.overall_level === 'CRITICAL') return 'storm';
     if (summary?.overall_level === 'HIGH') return 'rain';
     const currentHour = new Date().getHours();
     if (currentHour >= 19 || currentHour < 6) return 'night';
     return 'clear';
-  }, [weatherMood, detectedLiveWeather, selectedZone, summary]);
+  }, [detectedLiveWeather, selectedZone, summary]);
 
   useEffect(() => {
     if (sidebarOpen) {
@@ -342,10 +339,9 @@ function App() {
 
   return (
     <div className="shell">
-      {/* Dynamic Multi-Layered Atmospheric Weather Background */}
+      {/* Dynamic Multi-Layered Atmospheric Weather Background (100% Fully Automatic) */}
       <WeatherAmbientBackground 
         resolvedCondition={resolvedWeatherCondition} 
-        currentCondition={weatherMood} 
         weatherDetails={detectedLiveWeather || undefined} 
       />
 
@@ -364,7 +360,7 @@ function App() {
           </div>
         </div>
 
-        {/* System Telemetry & Weather Atmosphere Badges */}
+        {/* System Telemetry & Fully Automatic Live Weather Badge */}
         <div className="header-center-badges">
           <div className="live-status-pill">
             <span className="pulse-green"></span>
@@ -372,92 +368,21 @@ function App() {
             <small>· {lastUpdatedTime}</small>
           </div>
 
-          {/* Dynamic Weather Atmosphere Switcher */}
-          <div className="weather-ambiance-pill-container" style={{ position: 'relative' }}>
-            <button 
-              className="weather-ambiance-pill"
-              onClick={() => setWeatherDropdownOpen(prev => !prev)}
-              title="Click to toggle or choose weather background ambiance"
-            >
-              <span className="weather-icon-pulse">{WEATHER_MOOD_CONFIG[resolvedWeatherCondition]?.icon || '🌤️'}</span>
-              <span className="weather-mode-name">
-                {weatherMood === 'auto' 
-                  ? `Auto: ${detectedLiveWeather?.name ? detectedLiveWeather.name.split(' (')[0] : 'Current Place'} · ${WEATHER_MOOD_CONFIG[resolvedWeatherCondition]?.label}${detectedLiveWeather?.temp !== undefined ? ` (${detectedLiveWeather.temp}°C)` : ''}`
-                  : WEATHER_MOOD_CONFIG[weatherMood]?.label}
-              </span>
-              {weatherMood === 'auto' ? (
-                <span className="weather-status-live">📍 GPS AUTO</span>
-              ) : (
-                <span className="weather-opt-badge">PREVIEW</span>
-              )}
-              <ChevronDown size={13} style={{ opacity: 0.7, transform: weatherDropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
-            </button>
-
-            {weatherDropdownOpen && (
-              <>
-                <div 
-                  style={{ position: 'fixed', inset: 0, zIndex: 999 }} 
-                  onClick={() => setWeatherDropdownOpen(false)} 
-                />
-                <div className="weather-ambiance-dropdown">
-                  <div className="weather-dropdown-header">
-                    <span>ATMOSPHERIC BACKGROUND</span>
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); setWeatherDropdownOpen(false); }}
-                      style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '13px' }}
-                    >
-                      ✕
-                    </button>
-                  </div>
-
-                  {(Object.keys(WEATHER_MOOD_CONFIG) as WeatherConditionType[]).map(key => {
-                    const item = WEATHER_MOOD_CONFIG[key];
-                    const isSelected = weatherMood === key;
-                    const isAuto = key === 'auto';
-                    return (
-                      <button
-                        key={key}
-                        className={`weather-option-btn ${isSelected ? 'active' : ''}`}
-                        onClick={() => {
-                          setWeatherMood(key);
-                          setWeatherDropdownOpen(false);
-                          if (isAuto) {
-                            syncCurrentPlaceWeather(false);
-                          } else {
-                            addToast({
-                              id: String(Date.now()),
-                              title: `${item.icon} Atmospheric Weather Mode`,
-                              message: `Dynamic background ambiance switched to ${item.label} (${item.desc}).`,
-                              severity: 'INFO',
-                              time: new Date().toLocaleTimeString(),
-                            });
-                          }
-                        }}
-                      >
-                        <div className="weather-opt-left">
-                          <span className="weather-opt-icon">{item.icon}</span>
-                          <div>
-                            <div style={{ fontWeight: isSelected ? 600 : 500 }}>
-                              {isAuto
-                                ? `⚡ Live Auto (${detectedLiveWeather?.name ? detectedLiveWeather.name.split(' (')[0] : 'Current Place'})`
-                                : item.label}
-                            </div>
-                            <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
-                              {isAuto
-                                ? `Real-time weather of your location (${detectedLiveWeather?.conditionName || 'Live Telemetry'}${detectedLiveWeather?.temp !== undefined ? ` · ${detectedLiveWeather.temp}°C` : ''})`
-                                : item.desc}
-                            </div>
-                          </div>
-                        </div>
-                        {isAuto ? (
-                          <span className="weather-opt-badge" style={{ background: 'rgba(16, 185, 129, 0.25)', color: '#34d399' }}>📍 LOCAL GPS</span>
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              </>
-            )}
+          {/* Fully Automatic Live Meteorological Telemetry Indicator */}
+          <div 
+            className="live-weather-telemetry-badge"
+            title={`Atmospheric Background Auto-Synced to ${detectedLiveWeather?.name || 'Current Place'}: ${detectedLiveWeather?.conditionName || 'Live Telemetry'} (${detectedLiveWeather?.temp !== undefined ? `${detectedLiveWeather.temp}°C` : 'Live'})`}
+          >
+            <span className="weather-icon-pulse">
+              {detectedLiveWeather?.icon || (resolvedWeatherCondition === 'storm' ? '⛈️' : resolvedWeatherCondition === 'rain' ? '🌧️' : resolvedWeatherCondition === 'fog' ? '🌫️' : resolvedWeatherCondition === 'cloudy' ? '☁️' : resolvedWeatherCondition === 'night' ? '🌙' : '☀️')}
+            </span>
+            <span className="weather-loc-text">
+              {detectedLiveWeather?.name ? detectedLiveWeather.name.split(' (')[0] : 'Current Place'} · {detectedLiveWeather?.conditionName || 'Auto Atmosphere'}{detectedLiveWeather?.temp !== undefined ? ` (${detectedLiveWeather.temp}°C)` : ''}
+            </span>
+            <span className="weather-live-tag">
+              <span className="pulse-green-dot"></span>
+              LIVE AUTO
+            </span>
           </div>
 
           {dataMode && (
@@ -898,16 +823,6 @@ function App() {
                   onSelectPinnedLocation={loc => setPinnedWeatherLoc(loc)}
                   onWeatherConditionDetected={(cond, details) => {
                     setDetectedLiveWeather({ condition: cond, ...details });
-                  }}
-                  onSelectAtmosphere={(mood) => {
-                    setWeatherMood(mood);
-                    addToast({
-                      id: String(Date.now()),
-                      title: '✨ Dynamic Weather Backdrop Applied',
-                      message: `Switched background ambiance to ${WEATHER_MOOD_CONFIG[mood]?.label || mood}.`,
-                      severity: 'INFO',
-                      time: new Date().toLocaleTimeString(),
-                    });
                   }}
                 />
               </div>

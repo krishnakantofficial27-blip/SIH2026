@@ -589,8 +589,17 @@ export const WeatherForecast: React.FC<WeatherForecastProps> = ({
                 <div 
                   key={day.date} 
                   className={`forecast-day-card ${day.risk_level.toLowerCase()} clickable-weather-card`}
-                  onClick={() => onSelectAtmosphere && onSelectAtmosphere(atm)}
-                  title={`Click to preview ${day.condition} background ambiance`}
+                  onClick={() => {
+                    if (onWeatherConditionDetected) {
+                      onWeatherConditionDetected(atm, {
+                        temp: day.temp_high,
+                        rainfall: day.rainfall_mm,
+                        conditionName: `${day.condition} (${day.day})`,
+                        locationName: selectedTarget.name
+                      });
+                    }
+                  }}
+                  title={`Click to sync background atmosphere to ${day.condition}`}
                 >
                   <span className="day-name">{day.day}</span>
                   <span className="day-date">{day.date}</span>
@@ -611,16 +620,9 @@ export const WeatherForecast: React.FC<WeatherForecastProps> = ({
                     {day.risk_level} ({day.risk_projection})
                   </div>
 
-                  <button 
-                    className="preview-weather-bg-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (onSelectAtmosphere) onSelectAtmosphere(atm);
-                    }}
-                    title="Apply atmospheric background"
-                  >
-                    ✨ Preview Ambiance
-                  </button>
+                  <span className="auto-sync-day-pill">
+                    ⚡ Auto-Sync Atmosphere
+                  </span>
                 </div>
               );
             })}
